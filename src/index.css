@@ -1,0 +1,53 @@
+.logo{
+  margin-left: 50px;
+  margin-bottom: 10px;
+
+}
+
+.header{
+  margin-top: 30px;
+  display: flex;
+}
+
+.iconNDX{
+  float: right;
+  margin-left: 150px;
+}
+
+body {
+  margin: 0;
+  background-color: #F9F6F4;
+
+}
+
+
+/* danh sách vé - nút lọc */
+.btnLoc{
+border: 1px solid rgb(255, 202, 8);
+font-weight:500;
+color: orange;
+margin-top: 50px;
+margin-bottom: 50px;
+margin-left: 230px;
+}
+
+/* đổi soát vé - nút drawer */
+.btnDrawer{
+  float: right;
+  padding: 10px;
+
+}
+
+/* label của drawer đổi soát vé */
+.label{
+  font-weight: bold;
+  margin-top:20px; 
+  font-size:15px;
+  /* background-color: rgb(255, 248, 222); */
+}
+
+.footer{
+  padding: 10px;
+  font-size: small;
+  color: #686868;
+}
