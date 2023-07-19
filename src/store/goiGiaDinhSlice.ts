@@ -5,21 +5,21 @@ import { db } from '../firebase/firebaseConfig';
 
 const fieldToOrderBy = 'STT';
 
-type TableDataItemDoiSoatVe = {
+type TableDataItemGoiGiaDinh = {
   key: string;
   STT: string;
+  bookingCode: string;
   soVe: string;
-  tenSK: string;
+  tinhTrangSD: string;
   ngaySD: string;
-  tenLoaiVe: string;
+  ngayXuatVe: string;
   congCheckin: string;
-  trangThai: string;
 };
 
-export type State = TableDataItemDoiSoatVe[];
+export type State = TableDataItemGoiGiaDinh[];
 
-const doiSoatVeSlice = createSlice({
-  name: 'doiSoatVe',
+const goiGiaDinhSlice = createSlice({
+  name: 'goiGiaDinh',
   initialState: [] as State,
   reducers: {
     setData: (state, action: PayloadAction<State>) => {
@@ -28,30 +28,31 @@ const doiSoatVeSlice = createSlice({
   },
 });
 
-export const { setData } = doiSoatVeSlice.actions;
+export const { setData } = goiGiaDinhSlice.actions;
 
-export const fetchDataFromFirebase = () => {
+export const fetchGoiGiaDinhDataFromFirebase = () => {
   return async (dispatch: Dispatch<any>, getState: () => any) => {
     try {
-       const stt = query(collection(db, 'doisoatve'), orderBy(fieldToOrderBy, 'asc'));
-       const querySnapshot = await getDocs(stt);
+
+      const stt = query(collection(db, 'goigiadinh'), orderBy(fieldToOrderBy, 'asc'));
+      const querySnapshot = await getDocs(stt);
 
       const data: State = querySnapshot.docs.map((doc) => ({
         key: doc.id,
         STT: doc.data().STT,
+        bookingCode: doc.data().bookingCode,
         soVe: doc.data().soVe,
-        tenSK: doc.data().tenSK,
+        tinhTrangSD: doc.data().tinhTrangSD,
         ngaySD: doc.data().ngaySD,
-        tenLoaiVe: doc.data().tenLoaiVe,
+        ngayXuatVe: doc.data().ngayXuatVe,
         congCheckin: doc.data().congCheckin,
-        trangThai: doc.data().trangThai,   
       }));
 
-      console.log(data); 
+      console.log(data);
 
-      const existingData = getState().doiSoatVe;
+      const existingData = getState().goiGiaDinh;
 
-      const newData = data.filter((item) => !existingData.some((existingItem: TableDataItemDoiSoatVe) => existingItem.key === item.key));
+      const newData = data.filter((item) => !existingData.some((existingItem: TableDataItemGoiGiaDinh) => existingItem.key === item.key));
 
       dispatch(setData([...existingData, ...newData]));
     } catch (error) {
@@ -60,4 +61,4 @@ export const fetchDataFromFirebase = () => {
   };
 };
 
-export default doiSoatVeSlice.reducer;
+export default goiGiaDinhSlice.reducer;

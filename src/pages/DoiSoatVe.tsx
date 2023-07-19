@@ -81,7 +81,7 @@ function DoiSoatVe() {
 
   return (
     <div style={{ display: 'flex' }}>
-            <div className="" style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', paddingBottom: '50px', width:'800px' }}>
+            <div className="" style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', paddingBottom: '50px', width:'800px', height: '540px' }}>
       <h1>Đối Soát Vé</h1>
 
       {/* Tìm kiếm */}
@@ -109,7 +109,7 @@ function DoiSoatVe() {
       />
       </div>
 
-<div className="" style={{ backgroundColor: '#FFFFFF', marginLeft: '20px', padding: '10px', width: '350px' }}>
+<div className="" style={{ backgroundColor: '#FFFFFF', marginLeft: '20px', padding: '10px', width: '350px', height: '580px' }}>
         <h1>Lọc vé</h1>
            <Select
       defaultValue="Hội Thể Thao Quốc Gia 2023"

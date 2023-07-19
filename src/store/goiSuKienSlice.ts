@@ -3,24 +3,25 @@ import { Dispatch } from 'redux';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/firebaseConfig';
 
+
 const fieldToOrderBy = 'STT';
 
-type TableDataItemQuanLyVe = {
+type TableDataItemGoiSuKien = {
   key: string;
   STT: string;
   bookingCode: string;
   soVe: string;
   tenSK: string;
-  tinhtrangSD: string;
+  tinhTrangSD: string;
   ngaySD: string;
   ngayXuatVe: string;
   congCheckin: string;
 };
 
-export type State = TableDataItemQuanLyVe[];
+export type State = TableDataItemGoiSuKien[];
 
-const quanLyVeSlice = createSlice({
-  name: 'quanLyVe',
+const goiSuKienSlice = createSlice({
+  name: 'goiSuKien',
   initialState: [] as State,
   reducers: {
     setData: (state, action: PayloadAction<State>) => {
@@ -29,12 +30,13 @@ const quanLyVeSlice = createSlice({
   },
 });
 
-export const { setData } = quanLyVeSlice.actions;
+export const { setData } = goiSuKienSlice.actions;
 
-export const fetchDataFromFirebase = () => {
+export const fetchGoiSuKienDataFromFirebase = () => {
   return async (dispatch: Dispatch<any>, getState: () => any) => {
     try {
-      const stt = query(collection(db, 'quanlyve'), orderBy(fieldToOrderBy, 'asc'));
+
+      const stt = query(collection(db, 'goisukien'), orderBy(fieldToOrderBy, 'asc'));
       const querySnapshot = await getDocs(stt);
 
       const data: State = querySnapshot.docs.map((doc) => ({
@@ -43,17 +45,17 @@ export const fetchDataFromFirebase = () => {
         bookingCode: doc.data().bookingCode,
         soVe: doc.data().soVe,
         tenSK: doc.data().tenSK,
-        tinhtrangSD: doc.data().tinhtrangSD,
+        tinhTrangSD: doc.data().tinhTrangSD,
         ngaySD: doc.data().ngaySD,
         ngayXuatVe: doc.data().ngayXuatVe,
         congCheckin: doc.data().congCheckin,
       }));
 
-      console.log(data); 
+      console.log(data);
 
-      const existingData = getState().quanLyVe;
+      const existingData = getState().goiSuKien;
 
-      const newData = data.filter((item) => !existingData.some((existingItem: TableDataItemQuanLyVe) => existingItem.key === item.key));
+      const newData = data.filter((item) => !existingData.some((existingItem: TableDataItemGoiSuKien) => existingItem.key === item.key));
 
       dispatch(setData([...existingData, ...newData]));
     } catch (error) {
@@ -62,4 +64,4 @@ export const fetchDataFromFirebase = () => {
   };
 };
 
-export default quanLyVeSlice.reducer;
+export default goiSuKienSlice.reducer;
