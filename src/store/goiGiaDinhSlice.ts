@@ -5,7 +5,7 @@ import { db } from '../firebase/firebaseConfig';
 
 const fieldToOrderBy = 'STT';
 
-type TableDataItemGoiGiaDinh = {
+export type TableDataItemGoiGiaDinh = {
   key: string;
   STT: string;
   bookingCode: string;
@@ -33,10 +33,8 @@ export const { setData } = goiGiaDinhSlice.actions;
 export const fetchGoiGiaDinhDataFromFirebase = () => {
   return async (dispatch: Dispatch<any>, getState: () => any) => {
     try {
-
       const stt = query(collection(db, 'goigiadinh'), orderBy(fieldToOrderBy, 'asc'));
       const querySnapshot = await getDocs(stt);
-
       const data: State = querySnapshot.docs.map((doc) => ({
         key: doc.id,
         STT: doc.data().STT,
@@ -48,12 +46,15 @@ export const fetchGoiGiaDinhDataFromFirebase = () => {
         congCheckin: doc.data().congCheckin,
       }));
 
-      console.log(data);
+      console.log(data); 
 
+      // Lấy dữ liệu hiện tại từ state
       const existingData = getState().goiGiaDinh;
 
+      // Lọc các mục mới mà chưa có trong dữ liệu hiện tại
       const newData = data.filter((item) => !existingData.some((existingItem: TableDataItemGoiGiaDinh) => existingItem.key === item.key));
 
+      // Kết hợp dữ liệu hiện tại và dữ liệu mới và gửi đến action để cập nhật state
       dispatch(setData([...existingData, ...newData]));
     } catch (error) {
       console.log('Error fetching data from Firebase:', error);

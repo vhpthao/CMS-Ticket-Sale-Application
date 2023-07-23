@@ -12,18 +12,19 @@ import { fetchGoiSuKienDataFromFirebase, State as GoiSuKienState } from '../stor
 import { Dispatch } from 'redux';
 import Papa from 'papaparse';
 
+// Hàm để xuất dữ liệu dưới dạng file CSV với encoding UTF-8 và BOM
 const exportAsCSV = (data: any, filename: string) => {
-    const csv = Papa.unparse(data, { header: true });
-    const csvWithBom = '\uFEFF' + csv; 
-    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' }); 
-    const url = URL.createObjectURL(blob); 
-    const link = document.createElement('a'); 
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden'; 
-    document.body.appendChild(link); 
-    link.click();
-    document.body.removeChild(link); 
+    const csv = Papa.unparse(data, { header: true }); // Chuyển đổi dữ liệu thành chuỗi CSV
+    const csvWithBom = '\uFEFF' + csv; // Thêm BOM vào đầu chuỗi CSV
+    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' }); // Tạo đối tượng Blob từ chuỗi CSV với encoding UTF-8 và BOM
+    const url = URL.createObjectURL(blob); // Tạo URL từ Blob
+    const link = document.createElement('a'); // Tạo thẻ a để tạo liên kết tải xuống
+    link.setAttribute('href', url); // Thiết lập đường dẫn của liên kết
+    link.setAttribute('download', filename); // Thiết lập tên file khi tải xuống
+    link.style.visibility = 'hidden'; // Ẩn liên kết
+    document.body.appendChild(link); // Thêm thẻ a vào body
+    link.click(); // Kích hoạt sự kiện click trên thẻ a (tải xuống)
+    document.body.removeChild(link); // Xóa thẻ a sau khi hoàn thành
   };
 
 interface RootState {
@@ -33,7 +34,7 @@ interface RootState {
   goiSuKien: GoiSuKienState;
 }
 
-
+// Định nghĩa màu tương ứng cho từng giá trị "tinhTrang"
 const tinhTrangColors: { [key: string]: string } = {
   'Đã sử dụng': 'blue',
   'Chưa sử dụng': 'green', 
@@ -81,22 +82,24 @@ const columnsGoiGiaDinh = [
 
 function QuanLyVe() {
 
+  // gọi dữ liệu từ firebase trang quản lý vé
   const dispatch = useDispatch<Dispatch>();
 
   const goiGiaDinh = useSelector((state: RootState) => state.goiGiaDinh);
   
   useEffect(() => {
-    dispatch(fetchGoiGiaDinhDataFromFirebase() as any);
+    dispatch(fetchGoiGiaDinhDataFromFirebase() as any); // ép kiểu thành any
   }, [dispatch]);
 
   const goiSuKien = useSelector((state: RootState) => state.goiSuKien);
   
   useEffect(() => {
-    dispatch(fetchGoiSuKienDataFromFirebase() as any);
+    dispatch(fetchGoiSuKienDataFromFirebase() as any); // ép kiểu thành any
   }, [dispatch]);
 
   const [selectedPackage, setSelectedPackage] = useState<string>('Gói gia đình');
 
+  // Lựa chọn cột dữ liệu hiển thị trong bảng dựa vào loại gói đang chọn
   const columns = selectedPackage === 'Gói gia đình' ? columnsGoiGiaDinh : columnsGoiSuKien;
 
   // phân trang
@@ -111,7 +114,6 @@ function QuanLyVe() {
   const pageSize = 5; // Số dòng dữ liệu trên mỗi trang
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedData = dataSource.slice(startIndex, endIndex);
 
   // Sự kiện hiển thị modal lọc vé
   const [visible, setVisible] = useState(false);
@@ -155,7 +157,6 @@ function QuanLyVe() {
     console.log('checked = ', checkedValues);
   };
 
-
   const onPageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -163,6 +164,7 @@ function QuanLyVe() {
 // Hàm xử lý khi nút "Xuất file(.csv)" được nhấn
 const handleExportCSV = () => {
     const dataToExport = paginatedData.map((item) => ({
+      // Customize the mapping based on your table data
       'STT': item.STT,
       'Booking Code': item.bookingCode,
       'Số vé': item.soVe,
@@ -171,8 +173,32 @@ const handleExportCSV = () => {
       'Ngày xuất vé': item.ngayXuatVe,
       'Cổng check-in': item.congCheckin,
     }));
-    exportAsCSV(dataToExport, 'danh_sach_ve.csv');
+    exportAsCSV(dataToExport, 'danh_sach_ve.csv'); // Gọi hàm xuất file CSV
   };
+
+  // Tạo state để lưu từ khóa tìm kiếm
+  const [searchKeyword, setSearchKeyword] = useState<string>('');
+
+  // Hàm xử lý tìm kiếm
+  const handleSearch = (value: string) => {
+    setSearchKeyword(value.toLowerCase()); // Chuyển đổi thành chữ thường và lưu từ khóa tìm kiếm
+    console.log('Search value:', value);
+  };
+
+  // Hàm lọc dữ liệu theo từ khóa tìm kiếm
+  const filteredData = dataSource.filter((TableDataItem) => {
+    const lowerCaseSearchKeyword = searchKeyword.toLowerCase();
+    // Kiểm tra nếu số vé hoặc cổng checkin chứa từ khóa tìm kiếm (không phân biệt chữ hoa, chữ thường)
+    return (
+      TableDataItem.bookingCode.toLowerCase().includes(lowerCaseSearchKeyword) ||
+      TableDataItem.soVe.toLowerCase().includes(lowerCaseSearchKeyword) ||
+      TableDataItem.tinhTrangSD.toLowerCase().includes(lowerCaseSearchKeyword) ||
+      TableDataItem.congCheckin.toLowerCase().includes(lowerCaseSearchKeyword)
+    );
+  });
+
+  // Phân trang cho dữ liệu đã lọc
+  const paginatedData = filteredData.slice(startIndex, endIndex);
 
   return (
     <div style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', width: '1180px', height: '580px' }}>
@@ -181,11 +207,11 @@ const handleExportCSV = () => {
         <button onClick={() => setSelectedPackage('Gói gia đình')} className={`navmini ${selectedPackage === 'Gói gia đình' ? 'active' : ''}`}>Gói gia đình</button>
         <button onClick={() => setSelectedPackage('Gói sự kiện')} className={`navmini ${selectedPackage === 'Gói sự kiện' ? 'active' : ''}`}>Gói sự kiện</button>
       </div>
-      {/* Tìm kiếm */}
-      <SearchComponent placeholder='Tìm kiếm ở đây...' size='large'
-        onSearch={(value: string) => {
-          console.log('Search value:', value);
-        }}
+      {/* tìm kiếm */}
+      <SearchComponent
+        placeholder='Tìm kiếm ở đây...'
+        size='large'
+        onSearch={handleSearch} // Sử dụng hàm xử lý tìm kiếm mới
         style={{ width: '350px', marginLeft: '0px', marginRight: '0px' }}
       />
 
@@ -223,22 +249,22 @@ const handleExportCSV = () => {
                 <Checkbox value="Tất cả">Tất cả</Checkbox>
               </Col>
               <Col span={8}>
-	                <Checkbox value="Cổng 1">Cổng 1</Checkbox>
-	              </Col>
-	              <Col span={8}>
-	                <Checkbox value="Cổng 2">Cổng 2</Checkbox>
-	              </Col>
+                  <Checkbox value="Cổng 1">Cổng 1</Checkbox>
+                </Col>
+                <Col span={8}>
+                  <Checkbox value="Cổng 2">Cổng 2</Checkbox>
+                </Col>
               <Col span={8}>
-	                <Checkbox value="Cổng 3">Cổng 3</Checkbox>
+                  <Checkbox value="Cổng 3">Cổng 3</Checkbox>
               </Col>
               <Col span={8}>
                <Checkbox value="Cổng 4">Cổng 4</Checkbox>
               </Col>
               <Col span={8}>
-                <Checkbox value="Cổng 5">5</Checkbox>
+                <Checkbox value="Cổng 5">Cổng 5</Checkbox>
               </Col>
             </Row>
-	          </Checkbox.Group>
+            </Checkbox.Group>
 
           {/* Nút lọc */}
           <Button size={'large'} className='btnLoc' style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange' }}>Lọc</Button>
@@ -246,18 +272,18 @@ const handleExportCSV = () => {
         {/* Nút "Xuất file(.csv)" */}
     <Button size={'large'} style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange' }} onClick={handleExportCSV}>
   Xuất file(.csv)
-	</Button>
+  </Button>
       </div>
 
-	    {/* Bảng dữ liệu danh sách vé */}
-	    <Table dataSource={paginatedData} columns={columns} pagination={false} style={{ marginTop: '30px' }} />
+      {/* Bảng dữ liệu danh sách vé */}
+      <Table dataSource={paginatedData} columns={columns} pagination={false} style={{ marginTop: '30px' }} />
       {/* Phân trang */}
-	      <Pagination
+        <Pagination
         current={currentPage }  pageSize={pageSize}
-        total={dataSource.length}        onChange={setCurrentPage}
+        total={dataSource.length}        onChange={setCurrentPage} // Sử dụng setState tương ứng với loại gói đang chọn
         style={{ marginTop: '10px', textAlign: 'center' }}/>
-	    </div>
+      </div>
 );
 }
-	
+  
 export default QuanLyVe;

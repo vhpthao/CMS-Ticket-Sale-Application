@@ -1,157 +1,239 @@
-import { Button, Table, Pagination, Radio , DatePicker, Select} from 'antd';
-import { useState } from 'react';
+import { Button, Table, Pagination, Radio, DatePicker, Select } from 'antd';
+import { useState, useEffect } from 'react';
 import SearchComponent from '../components/SearchComponent';
 import { Dayjs } from 'dayjs';
-import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchDataFromFirebase, State as DoiSoatVeState } from '../store/doiSoatVeSlice';
 import { Dispatch } from 'redux';
-
 import type { RadioChangeEvent } from 'antd';
-import type { CheckboxValueType } from 'antd/es/checkbox/Group';
+import Papa from 'papaparse';
 
+// Hàm để xuất dữ liệu dưới dạng file CSV với encoding UTF-8 và BOM
+const exportAsCSV = (data: any, filename: string) => {
+  const csv = Papa.unparse(data, { header: true }); // Chuyển đổi dữ liệu thành chuỗi CSV
+  const csvWithBom = '\uFEFF' + csv; // Thêm BOM vào đầu chuỗi CSV
+  const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' }); // Tạo đối tượng Blob từ chuỗi CSV với encoding UTF-8 và BOM
+  const url = URL.createObjectURL(blob); // Tạo URL từ Blob
+  const link = document.createElement('a'); // Tạo thẻ a để tạo liên kết tải xuống
+  link.setAttribute('href', url); // Thiết lập đường dẫn của liên kết
+  link.setAttribute('download', filename); // Thiết lập tên file khi tải xuống
+  link.style.visibility = 'hidden'; // Ẩn liên kết
+  document.body.appendChild(link); // Thêm thẻ a vào body
+  link.click(); // Kích hoạt sự kiện click trên thẻ a (tải xuống)
+  document.body.removeChild(link); // Xóa thẻ a sau khi hoàn thành
+};
 
 interface RootState {
   doiSoatVe: DoiSoatVeState;
 }
- 
+
 const columnsDoiSoatVe = [
   { title: 'STT', dataIndex: 'STT', key: 'STT' },
   { title: 'Số vé', dataIndex: 'soVe', key: 'soVe' },
-  { title: 'Tên sự kiện', dataIndex: 'tenSK', key: 'tenSK',flex: 1, },
+  { title: 'Tên sự kiện', dataIndex: 'tenSK', key: 'tenSK', flex: 1 },
   { title: 'Ngày sử dụng', dataIndex: 'ngaySD', key: 'ngaySD' },
-  { title: 'Tên loại vé', dataIndex: 'tenLoaiVe', key: 'tenLoaiVe',flex: 1, },
+  { title: 'Tên loại vé', dataIndex: 'tenLoaiVe', key: 'tenLoaiVe', flex: 1 },
   { title: 'Cổng check-in', dataIndex: 'congCheckin', key: 'congCheckin' },
-  { title: '', dataIndex: 'trangThai', key: 'trangThai',flex: 1, },
+  { title: '', dataIndex: 'trangThai', key: 'trangThai', flex: 1 },
 ];
+
+function filterData(
+  data: any[],
+  searchKeyword: string,
+  selectedEvent: string | null,
+  selectedTinhTrangDS: number,
+  fromDate: Dayjs | null,
+  toDate: Dayjs | null
+) {
+  return data.filter((item) => {
+    const isMatchEvent = selectedEvent === 'Tất cả' || !selectedEvent || item.tenSK === selectedEvent;
+    const isMatchTinhTrangDS =
+      selectedTinhTrangDS === 1
+        ? true
+        : selectedTinhTrangDS === 2 && item.trangThai === 'Đã đối soát'
+        ? true
+        : selectedTinhTrangDS === 3 && item.trangThai === 'Chưa đối soát';
+
+    // Chuyển đổi fromDate và toDate sang dạng chuỗi 'DD/MM/YYYY'
+    const fromDateStr = fromDate?.format('DD/MM/YYYY');
+    const toDateStr = toDate?.format('DD/MM/YYYY');
+
+    // Nếu ngày trong khoảng (fromDate, toDate) của item nằm trong khoảng (fromDate, toDate) đã chọn, thì return true, ngược lại return false
+    const isMatchDate =
+      (!fromDateStr || item.ngaySD >= fromDateStr) && (!toDateStr || item.ngaySD <= toDateStr);
+
+    // Kiểm tra nếu tên sự kiện hoặc cổng checkin chứa từ khóa tìm kiếm (không phân biệt chữ hoa, chữ thường)
+    const lowerCaseSearchKeyword = searchKeyword.toLowerCase();
+    const isMatchSearchKeyword =
+      item.soVe.toLowerCase().includes(lowerCaseSearchKeyword) ||
+      item.tenSK.toLowerCase().includes(lowerCaseSearchKeyword) ||
+      item.congCheckin.toLowerCase().includes(lowerCaseSearchKeyword);
+
+    return isMatchEvent && isMatchTinhTrangDS && isMatchDate && isMatchSearchKeyword;
+  });
+}
 
 function DoiSoatVe() {
   const dispatch = useDispatch<Dispatch>();
   const doiSoatVe = useSelector((state: RootState) => state.doiSoatVe);
-  
-  useEffect(() => {
-    dispatch(fetchDataFromFirebase() as any); // ép kiểu thành any
-  }, [dispatch]);
 
-  // select
-  const handleChange = (value: string) => {
-  console.log(`selected ${value}`);
-};
-
-  // Thiết lập định dạng cho ngày tháng năm
+  // Bạn sẽ cần thêm một state để lưu trữ dữ liệu đã lọc
+  const [filteredDataLoc, setFilteredDataLoc] = useState(doiSoatVe);
+  const [searchKeywordTK, setSearchKeywordTK] = useState<string>('');
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+  const [selectedTinhTrangDS, setSelectedTinhTrangDS] = useState<number>(1);
   const [fromDate, setFromDate] = useState<Dayjs | null>(null);
   const [toDate, setToDate] = useState<Dayjs | null>(null);
-
-  const handleFromDateChange = (date: Dayjs | null, dateString: string) => {
-    setFromDate(date);
-    // Thực hiện xử lý khác (nếu có)
-  };
-
-  const handleToDateChange = (date: Dayjs | null, dateString: string) => {
-    setToDate(date);
-    // Thực hiện xử lý khác (nếu có)
-  };
-
-  // Sự kiện cho radio button
-  const [value, setValue] = useState(1);
-
-  const onChangeRadioTinhTrangSD = (e: RadioChangeEvent) => {
-    console.log('radio checked', e.target.value);
-    setValue(e.target.value);
-  };
-
-  // Cổng check-in
-  const onChangeCheckBox = (checkedValues: CheckboxValueType[]) => {
-    console.log('checked = ', checkedValues);
-  };
-
-
-
-  // Phân trang
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 5; // Số dòng dữ liệu trên mỗi trang
+  const pageSize = 5;
 
-  const onPageChange = (page: number) => {
+  // Sau khi nhận dữ liệu từ Firebase, lọc và cập nhật filteredDataLoc
+  useEffect(() => {
+    dispatch(fetchDataFromFirebase() as any); // ép kiểu thành any
+  }, [dispatch, doiSoatVe]);
+
+  // Hàm lọc dữ liệu theo từ khóa tìm kiếm và các điều kiện lọc
+  const handleFilterData = () => {
+    const filteredData = filterData(doiSoatVe, searchKeywordTK, selectedEvent, selectedTinhTrangDS, fromDate, toDate);
+    setFilteredDataLoc(filteredData);
+    setCurrentPage(1);
+  };
+
+  // Hàm xử lý tìm kiếm
+  const handleSearch = (value: string) => {
+    setSearchKeywordTK(value.toLowerCase());
+    handleFilterData();
+  };
+
+  // Hàm xử lý thay đổi giá trị trong Select
+  const handleChangeEvent = (value: string) => {
+    setSelectedEvent(value);
+    handleFilterData();
+  };
+
+  // Hàm xử lý thay đổi giá trị trong Radio
+  const handleChangeTinhTrangDS = (e: RadioChangeEvent) => {
+    setSelectedTinhTrangDS(e.target.value);
+    handleFilterData();
+  };
+
+  // Hàm xử lý thay đổi giá trị trong DatePicker
+  const handleChangeFromDate = (date: Dayjs | null) => {
+    setFromDate(date);
+    handleFilterData();
+  };
+
+  // Hàm xử lý thay đổi giá trị trong DatePicker
+  const handleChangeToDate = (date: Dayjs | null) => {
+    setToDate(date);
+    handleFilterData();
+  };
+
+  // Xử lý xuất dữ liệu ra file CSV khi người dùng click vào nút "Xuất CSV"
+  const handleExportCSV = () => {
+    exportAsCSV(filteredDataLoc, 'doi-soat-ve.csv');
+  };
+
+  // Tính toán chỉ số bắt đầu và kết thúc của dữ liệu hiển thị trên trang hiện tại
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+
+  // Lấy dữ liệu hiển thị trên trang hiện tại từ mảng filteredDataLoc
+  const currentPageData = filteredDataLoc.slice(startIndex, endIndex);
+
+
+  // Hàm xử lý khi trang được thay đổi trong phân trang
+const onPageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedData = doiSoatVe.slice(startIndex, endIndex);
+  // Danh sách tên sự kiện để hiển thị trong Select
+  const eventNames = Array.from(new Set(doiSoatVe.map((item) => item.tenSK)));
+  const eventOptions = [{ value: 'Tất cả', label: 'Tất cả' }, ...eventNames.map((eventName) => ({ value: eventName, label: eventName }))];
 
   return (
     <div style={{ display: 'flex' }}>
-            <div className="" style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', paddingBottom: '50px', width:'800px', height: '540px' }}>
-      <h1>Đối Soát Vé</h1>
-
-      {/* Tìm kiếm */}
-      <SearchComponent placeholder='Tìm kiếm ở đây...' size='large'
-        onSearch={(value: string) => {
-          console.log('Search value:', value);
-        }}
-        style={{ width: '350px', marginLeft: '0px', marginRight: '0px' }}
-      />
-
-        {/* Nút chốt đối soát */}
-        <Button size={'large'} style={{ fontWeight: '500', backgroundColor: 'orange', color: 'white', float: 'right' }}>
-          Đối soát vé
+      {/* Phần hiển thị danh sách vé */}
+      <div
+        className=""
+        style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', paddingBottom: '50px', width: '800px', height: '540px' }}
+      >
+        <h1>Đối Soát Vé</h1>
+  
+        {/* Tìm kiếm */}
+        <SearchComponent
+          placeholder='Tìm kiếm ở đây...'
+          size='large'
+          onSearch={handleSearch} // Sử dụng hàm xử lý tìm kiếm mới
+          style={{ width: '350px', marginLeft: '0px', marginRight: '0px' }}
+        />
+  
+        {/* Nút "Xuất file(.csv)" */}
+        <Button
+          size={'large'}
+          style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange', float: 'right' }}
+          onClick={handleExportCSV}
+        >
+          Xuất file(.csv)
         </Button>
-
-     {/* Bảng dữ liệu danh sách vé */}
-     <Table dataSource={paginatedData} columns={columnsDoiSoatVe} pagination={false} style={{ marginTop: '30px' }} />
-{/* Phân trang */}
-<Pagination
-        current={currentPage}
-        pageSize={pageSize}
-        total={doiSoatVe.length}
-        onChange={onPageChange}
-        style={{ marginTop: '10px', textAlign: 'center' }}
-      />
+  
+        {/* Bảng dữ liệu danh sách vé */}
+        <Table dataSource={currentPageData} columns={columnsDoiSoatVe} pagination={false} style={{ marginTop: '30px' }} />
+        {/* Phân trang */}
+        <Pagination current={currentPage} pageSize={pageSize} total={filteredDataLoc.length} onChange={onPageChange} style={{ marginTop: '10px', textAlign: 'center' }} />
       </div>
-
-<div className="" style={{ backgroundColor: '#FFFFFF', marginLeft: '20px', padding: '10px', width: '350px', height: '580px' }}>
+  
+      {/* Phần lọc vé */}
+      <div
+        className=""
+        style={{ backgroundColor: '#FFFFFF', marginLeft: '20px', padding: '10px', width: '350px', height: '580px' }}
+      >
         <h1>Lọc vé</h1>
-           <Select
-      defaultValue="Hội Thể Thao Quốc Gia 2023"
-      style={{ width: 250 }}
-      onChange={handleChange}
-      options={[
-        { value: 'Hội Thể Thao Quốc Gia 2023', label: 'Hội Thể Thao Quốc Gia 2023' },
-        { value: 'Hội Cầu Lông Việt Nam 2023', label: 'Hội Cầu Lông Việt Nam 2023' },
-        { value: 'Phương Thảo', label: 'Phương Thảo' },
-        
-      ]}
-    />
+  
+        {/* Dropdown chọn sự kiện */}
+        <Select
+          defaultValue={selectedEvent || undefined}
+          style={{ width: 250 }}
+          onChange={handleChangeEvent}
+          options={eventOptions}
+        />
+  
         {/* Tình trạng đối soát */}
         <div style={{ display: 'flex' }}>
           <p className='label' style={{ float: 'left' }}>Tình trạng đối soát</p>
-          <Radio.Group onChange={onChangeRadioTinhTrangSD} value={value} style={{ float: 'right', marginLeft: '20px', marginTop: '20px' }}>
+          <Radio.Group onChange={handleChangeTinhTrangDS} value={selectedTinhTrangDS} style={{ float: 'right', marginLeft: '20px', marginTop: '20px' }}>
             <Radio value={1}>Tất cả</Radio> <br />
-            <Radio value={2}>Đã sử dụng</Radio> <br />
-            <Radio value={3}>Chưa sử dụng</Radio> <br />
-            <Radio value={4}>Hết hạn</Radio>
+            <Radio value={2}>Đã đối soát</Radio> <br />
+            <Radio value={3}>Chưa đối soát</Radio> <br />
           </Radio.Group>
           <br />
         </div>
-
+  
         {/* Loại vé */}
         <p className='label'>Loại vé:  <span style={{ marginLeft: '50px', fontWeight: 450 }}>Vé cổng</span></p>
-
+  
         {/* Từ ngày và đến ngày */}
         <div style={{ display: 'flex' }}>
           <p className='label'>Từ ngày: </p>
-          <DatePicker value={fromDate} onChange={handleFromDateChange} format="DD/MM/YYYY" style={{ marginLeft: '30px' }} />
+          <DatePicker value={fromDate} onChange={handleChangeFromDate} format="DD/MM/YYYY" style={{ marginLeft: '30px' }} />
         </div>
         <div style={{ display: 'flex', marginTop: '20px' }}>
           <p className='label'>Đến ngày:</p>
-          <DatePicker value={toDate} onChange={handleToDateChange} format="DD/MM/YYYY" style={{ marginLeft: '20px' }} />
+          <DatePicker value={toDate} onChange={handleChangeToDate} format="DD/MM/YYYY" style={{ marginLeft: '20px' }} />
         </div>
-
+  
         {/* Nút lọc */}
-        <Button size={'large'} style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange', marginLeft: '150px', marginTop: '50px' }}>Lọc</Button>
-</div>
+        <Button
+          size={'large'}
+          style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange', marginLeft: '150px', marginTop: '50px' }}
+          onClick={handleFilterData}
+        >
+          Lọc
+        </Button>
       </div>
+    </div>
   );
+  
 }
 
 export default DoiSoatVe;

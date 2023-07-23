@@ -3,7 +3,6 @@ import { Dispatch } from 'redux';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/firebaseConfig';
 
-
 const fieldToOrderBy = 'STT';
 
 type TableDataItemGoiSuKien = {
@@ -35,7 +34,6 @@ export const { setData } = goiSuKienSlice.actions;
 export const fetchGoiSuKienDataFromFirebase = () => {
   return async (dispatch: Dispatch<any>, getState: () => any) => {
     try {
-
       const stt = query(collection(db, 'goisukien'), orderBy(fieldToOrderBy, 'asc'));
       const querySnapshot = await getDocs(stt);
 

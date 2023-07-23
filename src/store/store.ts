@@ -5,7 +5,6 @@ import goiDichVuReducer from './goiDichVuSlice';
 import giaDinhReducer from './goiGiaDinhSlice'
 import suKienReducer from './goiSuKienSlice'
 
-
 const store = configureStore({
   reducer: {
     goiGiaDinh: giaDinhReducer,
@@ -14,7 +13,6 @@ const store = configureStore({
     goiDichVu: goiDichVuReducer,
 
   },
-
   middleware: [thunkMiddleware],
 });
 

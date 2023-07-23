@@ -5,7 +5,7 @@ import { db } from '../firebase/firebaseConfig';
 
 const fieldToOrderBy = 'STT';
 
-type TableDataItemDoiSoatVe = {
+export type TableDataItemDoiSoatVe = {
   key: string;
   STT: string;
   soVe: string;
@@ -33,8 +33,8 @@ export const { setData } = doiSoatVeSlice.actions;
 export const fetchDataFromFirebase = () => {
   return async (dispatch: Dispatch<any>, getState: () => any) => {
     try {
-       const stt = query(collection(db, 'doisoatve'), orderBy(fieldToOrderBy, 'asc'));
-       const querySnapshot = await getDocs(stt);
+      const stt = query(collection(db, 'doisoatve'), orderBy(fieldToOrderBy, 'asc'));
+      const querySnapshot = await getDocs(stt);
 
       const data: State = querySnapshot.docs.map((doc) => ({
         key: doc.id,
@@ -46,8 +46,6 @@ export const fetchDataFromFirebase = () => {
         congCheckin: doc.data().congCheckin,
         trangThai: doc.data().trangThai,   
       }));
-
-      console.log(data); 
 
       const existingData = getState().doiSoatVe;
 

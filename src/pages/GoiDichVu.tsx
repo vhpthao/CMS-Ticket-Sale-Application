@@ -9,26 +9,26 @@ import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/vi';
 import Papa from 'papaparse';
 
-
+// Hàm để xuất dữ liệu dưới dạng file CSV với encoding UTF-8 và BOM
 const exportAsCSV = (data: any, filename: string) => {
-  const csv = Papa.unparse(data, { header: true }); 
-  const csvWithBom = '\uFEFF' + csv; 
-  const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob); 
-  const link = document.createElement('a'); 
-  link.setAttribute('href', url); 
-  link.setAttribute('download', filename); 
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link); 
-  link.click(); 
-  document.body.removeChild(link); 
+  const csv = Papa.unparse(data, { header: true }); // Chuyển đổi dữ liệu thành chuỗi CSV
+  const csvWithBom = '\uFEFF' + csv; // Thêm BOM vào đầu chuỗi CSV
+  const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' }); // Tạo đối tượng Blob từ chuỗi CSV với encoding UTF-8 và BOM
+  const url = URL.createObjectURL(blob); // Tạo URL từ Blob
+  const link = document.createElement('a'); // Tạo thẻ a để tạo liên kết tải xuống
+  link.setAttribute('href', url); // Thiết lập đường dẫn của liên kết
+  link.setAttribute('download', filename); // Thiết lập tên file khi tải xuống
+  link.style.visibility = 'hidden'; // Ẩn liên kết
+  document.body.appendChild(link); // Thêm thẻ a vào body
+  link.click(); // Kích hoạt sự kiện click trên thẻ a (tải xuống)
+  document.body.removeChild(link); // Xóa thẻ a sau khi hoàn thành
 };
 
+// Định nghĩa màu tương ứng cho từng giá trị "tinhTrang"
 const tinhTrangColors: { [key: string]: string } = {
   'Tắt': 'red',
   'Đang áp dụng': 'green', 
 };
-
 
 type TableDataItemGoiDichVu = {
   key: string;
@@ -48,20 +48,6 @@ interface RootState {
   goiDichVu: GoiDichVuState;
 }
 
-const columnsGoiDichVu = [
-  { title: 'STT', dataIndex: 'STT', key: 'STT' },
-  { title: 'Mã Gói', dataIndex: 'maGoi', key: 'maGoi' },
-  { title: 'Tên gói', dataIndex: 'tenGoi', key: 'tenGoi' },
-  { title: 'Ngày áp dụng', dataIndex: 'ngayApDung', key: 'ngayApDung' },
-  { title: 'Thời gian áp dụng', dataIndex: 'tgApDung', key: 'tgApDung' },
-  { title: 'Ngày hết hạn', dataIndex: 'ngayHetHan', key: 'ngayHetHan' },
-  { title: 'Thời gian hết hạn', dataIndex: 'tgHetHan', key: 'tgHetHan' },
-  { title: 'Giá vé(VNĐ/Vé)', dataIndex: 'giaVe', key: 'giaVe' },
-  { title: 'Giá Combo(VNĐ/Combo)', dataIndex: 'giaCombo', key: 'giaCombo' },
-  { title: 'Tình trạng', dataIndex: 'tinhTrang', key: 'tinhTrang' },
-  { title: '', dataIndex: 'hanhDong', key: 'hanhDong' },
-];
-
 function GoiDichVu() {
   // cập nhật các state trong modal
   const [selectedItem, setSelectedItem] = useState<TableDataItemGoiDichVu | null>(null);
@@ -79,6 +65,7 @@ const handleChangeSoVe = (value: string | number | null) => {
   }
 };
 
+  ///
   //sự kiện khi cập nhật modal
   const handleDateApDungChange = (date: Dayjs | null) => {
     if (date) {
@@ -108,11 +95,11 @@ const handleChangeSoVe = (value: string | number | null) => {
     setSelectedItem((prevSelectedItem) => ({
       ...prevSelectedItem,
       [name]: value,
-    }) as TableDataItemGoiDichVu); 
+    }) as TableDataItemGoiDichVu); // Thêm "as TableDataItemGoiDichVu" để chỉ định kiểu dữ liệu của prevSelectedItem
   };
 
   const handleChangeSelectTinhTrang = (value: string) => {
-    setSelectedTinhTrang(value);
+    setSelectedTinhTrang(value); // Cập nhật giá trị của selectedTinhTrang
   };
 
   ///
@@ -154,9 +141,10 @@ const handleChangeSoVe = (value: string | number | null) => {
     setIsAddModalOpen(false);
   };
 
+  // Trước khi mở modal cập nhật, xác định đối tượng cần cập nhật bằng hàm showUpdateModal
   const showUpdateModal = (item: TableDataItemGoiDichVu) => {
-    setSelectedItem(item); 
-    setIsUpdateModalOpen(true); 
+    setSelectedItem(item); // Lưu đối tượng cần cập nhật vào state selectedItem
+    setIsUpdateModalOpen(true); // Mở modal cập nhật
   };
 
   const handleUpdateModalOk = () => {
@@ -187,7 +175,6 @@ const handleChangeSoVe = (value: string | number | null) => {
   
   
 
-
   // Phân trang
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 3; // Số dòng dữ liệu trên mỗi trang
@@ -201,11 +188,9 @@ const handleChangeSoVe = (value: string | number | null) => {
   const paginatedData = goiDichVu.slice(startIndex, endIndex);
 
 
-
   const handleUpdateModalCancel = () => {
     setIsUpdateModalOpen(false);
   };
-
 
   const handleChangePage = (page: number) => {
     // Xử lý thay đổi trang
@@ -213,7 +198,9 @@ const handleChangeSoVe = (value: string | number | null) => {
   };
 
   const handleAddGoiDichVu = () => {
+    // Chắc chắn rằng đã cập nhật giá trị selectedTinhTrang
     setSelectedTinhTrang(selectedTinhTrang);
+      // Tìm gói có STT lớn nhất trong dữ liệu hiện tại
   const maxSTT = goiDichVu.reduce((max, item) => Math.max(max, parseInt(item.STT)), 0);
 
   // Tạo giá trị STT mới cho gói mới
@@ -230,11 +217,12 @@ const handleChangeSoVe = (value: string | number | null) => {
       tgHetHan: TimeHetHan ? TimeHetHan.format('HH:mm') : '',
       giaVe: selectedItem?.giaVe || '',
       giaCombo: selectedItem?.giaCombo || '',
-      tinhTrang: selectedTinhTrang, 
+      tinhTrang: selectedTinhTrang, // Cập nhật giá trị tình trạng từ state selectedTinhTrang
     };
   
     dispatch(addGoiDichVuToFirebase(newGoiDichVu) as any);
-
+  
+    // Sau khi thêm gói vé thành công, cập nhật lại trang hiện tại
     const totalPages = Math.ceil((goiDichVu.length + 1) / pageSize);
     setCurrentPage(totalPages);
   
@@ -242,6 +230,7 @@ const handleChangeSoVe = (value: string | number | null) => {
     setSelectedItem(newGoiDichVu);
   };
   
+  // Hàm xử lý khi nút "Xuất file(.csv)" được nhấn
 const handleExportCSV = () => {
   const dataToExport = paginatedData.map((item) => ({
     'STT': item.STT,
@@ -255,18 +244,41 @@ const handleExportCSV = () => {
     'Giá Combo': item.giaCombo,
     'Tình trạng':item.tinhTrang
   }));
-  exportAsCSV(dataToExport, 'danh_sach_ve.csv');
+  exportAsCSV(dataToExport, 'danh_sach_ve.csv'); // Gọi hàm xuất file CSV
 };
+
+// Tạo state để lưu từ khóa tìm kiếm
+const [searchKeyword, setSearchKeyword] = useState<string>('');
+
+// Hàm xử lý tìm kiếm
+const handleSearch = (value: string) => {
+  setSearchKeyword(value.toLowerCase()); // Chuyển đổi thành chữ thường và lưu từ khóa tìm kiếm
+  console.log('Search value:', value);
+};
+
+// Hàm lọc dữ liệu theo từ khóa tìm kiếm
+const filteredData = goiDichVu.filter((item) => {
+  const lowerCaseSearchKeyword = searchKeyword.toLowerCase();
+  // Kiểm tra nếu tên sự kiện hoặc cổng checkin chứa từ khóa tìm kiếm (không phân biệt chữ hoa, chữ thường)
+  return (
+    item.maGoi.toLowerCase().includes(lowerCaseSearchKeyword) ||
+    item.tenGoi.toLowerCase().includes(lowerCaseSearchKeyword) ||
+    item.tinhTrang.toLowerCase().includes(lowerCaseSearchKeyword)
+  );
+});
+
+// Phân trang cho dữ liệu đã lọc
+const paginatedFilteredData = filteredData.slice(startIndex, endIndex);
 
   return (
     <div style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', width: '1180px', height: '580px' }}>
       <h1>Danh Sách Vé</h1>
 
-      {/* Tìm kiếm */}
-      <SearchComponent placeholder='Tìm kiếm ở đây...' size='large'
-        onSearch={(value: string) => {
-          console.log('Search value:', value);
-        }}
+     {/* Tìm kiếm */}
+     <SearchComponent
+        placeholder='Tìm kiếm ở đây...'
+        size='large'
+        onSearch={handleSearch} // Sử dụng hàm xử lý tìm kiếm mới
         style={{ width: '350px', marginLeft: '0px', marginRight: '0px' }}
       />
 
@@ -292,9 +304,9 @@ const handleExportCSV = () => {
   placeholder="Nhập mã gói vé"
   style={{ width: '20%' }}
   size='large'
-  name="maGoi"
-  value={selectedItem?.maGoi} 
-  onChange={handleChangeInput} 
+  name="maGoi" // Thêm props name cho trường nhập liệu
+  value={selectedItem?.maGoi} // Sử dụng giá trị từ state selectedItem
+  onChange={handleChangeInput} // Gọi hàm handleChangeInput khi thay đổi giá trị
 />
         {/* tên gói vé */}
         <p className='label' style={{marginLeft:'30px', marginRight:'10px'}}>Tên gói vé</p>
@@ -302,9 +314,9 @@ const handleExportCSV = () => {
   placeholder="Nhập tên gói vé"
   style={{ width: '50%' }}
   size='large'
-  name="tenGoi"
-  value={selectedItem?.tenGoi} 
-  onChange={handleChangeInput}
+  name="tenGoi" // Thêm props name cho trường nhập liệu
+  value={selectedItem?.tenGoi} // Sử dụng giá trị từ state selectedItem
+  onChange={handleChangeInput} // Gọi hàm handleChangeInput khi thay đổi giá trị
 />
 </div>
 <div style={{ display: 'inline-flex', marginTop: '20px' }}>
@@ -347,9 +359,9 @@ const handleExportCSV = () => {
     placeholder="Giá vé"
     type='number'
     style={{ width: '25%', marginRight: '10px' }}
-    name="giaVe"
-    value={selectedItem?.giaVe} 
-    onChange={handleChangeInput}
+    name="giaVe" // Thêm props name cho trường nhập liệu
+    value={selectedItem?.giaVe} // Sử dụng giá trị từ state selectedItem
+    onChange={handleChangeInput} // Gọi hàm handleChangeInput khi thay đổi giá trị
   />
   <p>/vé</p>
 </div>
@@ -361,15 +373,15 @@ const handleExportCSV = () => {
     placeholder="Giá vé"
     type='number'
     style={{ width: '25%', marginRight: '10px' }}
-    name="giaCombo" 
-    value={selectedItem?.giaCombo} 
-    onChange={handleChangeInput} 
+    name="giaCombo" // Thêm props name cho trường nhập liệu
+    value={selectedItem?.giaCombo} // Sử dụng giá trị từ state selectedItem
+    onChange={handleChangeInput} // Gọi hàm handleChangeInput khi thay đổi giá trị
   />
   <p> / </p>
   <Input
     placeholder="Giá vé"
     type='number'
- value={soVe ?? ''}
+ value={soVe ?? ''} // Sử dụng toán tử ?? để gán giá trị mặc định ''
   onChange={(e) => handleChangeSoVe(parseInt(e.target.value))}
     style={{ width: '25%', marginRight: '10px', marginLeft: '10px' }}
   />
@@ -402,8 +414,8 @@ const handleExportCSV = () => {
       </Modal>
 
       <Table
-        dataSource={paginatedData}
-        pagination={false}
+        dataSource={paginatedFilteredData} 
+        pagination={false} // Ẩn phân trang mặc định
         columns={[
           // Các cột dữ liệu
           {
@@ -502,7 +514,7 @@ const handleExportCSV = () => {
                 size='large'
                 name="maGoi"
                 value={selectedItem.maGoi}
-                onChange={handleChangeInput} 
+                onChange={handleChangeInput} // Gọi hàm handleChangeInput khi thay đổi giá trị
               />
               <p className='label' style={{ marginLeft: '20px', marginRight: '10px' }}>Tên sự kiện</p>
               <Input
@@ -511,7 +523,7 @@ const handleExportCSV = () => {
                 size='large'
                 name="tenGoi"
                 value={selectedItem.tenGoi}
-                onChange={handleChangeInput} 
+                onChange={handleChangeInput} // Gọi hàm handleChangeInput khi thay đổi giá trị
               />
             </div>
             {/* ngày áp dụng đến ngày hết hạn */}
