@@ -1,121 +1,190 @@
 import { Button, Modal, Tag, DatePicker, Checkbox, Col, Row, Table, Pagination } from 'antd';
-import { useState } from 'react';
+import { useState} from 'react';
 import SearchComponent from '../components/SearchComponent';
-import { Dayjs } from 'dayjs';
-import { RadioChangeEvent } from 'antd/lib/radio';
+import dayjs, { Dayjs } from 'dayjs';
 import { Radio } from 'antd';
-import { CheckboxValueType } from 'antd/lib/checkbox/Group';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchGoiGiaDinhDataFromFirebase, State as GoiGiaDinhState } from '../store/goiGiaDinhSlice';
-import { fetchGoiSuKienDataFromFirebase, State as GoiSuKienState } from '../store/goiSuKienSlice';
+import { fetchGoiGiaDinhDataFromFirebase, State as GoiGiaDinhState , TableDataItemGoiGiaDinh,  updateNgaySDInFirebase} from '../store/goiGiaDinhSlice';
+import { fetchGoiSuKienDataFromFirebase, State as GoiSuKienState ,TableDataItemGoiSuKien,  updateNgaySDGSKInFirebase} from '../store/goiSuKienSlice';
 import { Dispatch } from 'redux';
 import Papa from 'papaparse';
+import { MoreOutlined } from '@ant-design/icons';
+import { CheckboxValueType } from 'antd/lib/checkbox/Group';
 
-// Hàm để xuất dữ liệu dưới dạng file CSV với encoding UTF-8 và BOM
+
 const exportAsCSV = (data: any, filename: string) => {
-    const csv = Papa.unparse(data, { header: true }); // Chuyển đổi dữ liệu thành chuỗi CSV
-    const csvWithBom = '\uFEFF' + csv; // Thêm BOM vào đầu chuỗi CSV
-    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' }); // Tạo đối tượng Blob từ chuỗi CSV với encoding UTF-8 và BOM
-    const url = URL.createObjectURL(blob); // Tạo URL từ Blob
-    const link = document.createElement('a'); // Tạo thẻ a để tạo liên kết tải xuống
-    link.setAttribute('href', url); // Thiết lập đường dẫn của liên kết
-    link.setAttribute('download', filename); // Thiết lập tên file khi tải xuống
-    link.style.visibility = 'hidden'; // Ẩn liên kết
-    document.body.appendChild(link); // Thêm thẻ a vào body
-    link.click(); // Kích hoạt sự kiện click trên thẻ a (tải xuống)
-    document.body.removeChild(link); // Xóa thẻ a sau khi hoàn thành
+    const csv = Papa.unparse(data, { header: true });
+    const csvWithBom = '\uFEFF' + csv; 
+    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' }); 
+    const url = URL.createObjectURL(blob); 
+    const link = document.createElement('a'); 
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename); 
+    link.style.visibility = 'hidden'; 
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link); 
   };
 
 interface RootState {
   goiGiaDinh: GoiGiaDinhState;
-}
-interface RootState {
   goiSuKien: GoiSuKienState;
 }
 
-// Định nghĩa màu tương ứng cho từng giá trị "tinhTrang"
 const tinhTrangColors: { [key: string]: string } = {
   'Đã sử dụng': 'blue',
   'Chưa sử dụng': 'green', 
   'Hết hạn':'red'
 };
 
-const columnsGoiSuKien = [
-  { title: 'STT', dataIndex: 'STT', key: 'STT' },
-  { title: 'Booking Code', dataIndex: 'bookingCode', key: 'bookingCode' },
-  { title: 'Số vé', dataIndex: 'soVe', key: 'soVe' },
-  { title: 'Tên sự kiện', dataIndex: 'tenSK', key: 'tenSK' },
-  {
-    title: 'Tình trạng sử dụng',
-    dataIndex: 'tinhTrangSD',
-    key: 'tinhTrangSD',
-    render: (tinhTrang: string) => (
-      <Tag color={tinhTrangColors[tinhTrang] || 'default'}>
-        {tinhTrang}
-      </Tag>
-    ),
-  },
-  { title: 'Ngày sử dụng', dataIndex: 'ngaySD', key: 'ngaySD'},
-  { title: 'Ngày xuất vé', dataIndex: 'ngayXuatVe', key: 'ngayXuatVe' },
-  { title: 'Cổng check-in', dataIndex: 'congCheckin', key: 'congCheckin' },
-];
-
-const columnsGoiGiaDinh = [
-  { title: 'STT', dataIndex: 'STT', key: 'STT' },
-  { title: 'Booking Code', dataIndex: 'bookingCode', key: 'bookingCode' },
-  { title: 'Số vé', dataIndex: 'soVe', key: 'soVe' },
-  {
-    title: 'Tình trạng sử dụng',
-    dataIndex: 'tinhTrangSD',
-    key: 'tinhTrangSD',
-    render: (tinhTrang: string) => (
-      <Tag color={tinhTrangColors[tinhTrang] || 'default'}>
-        {tinhTrang}
-      </Tag>
-    ),
-  },
-  { title: 'Ngày sử dụng', dataIndex: 'ngaySD', key: 'ngaySD', },
-  { title: 'Ngày xuất vé', dataIndex: 'ngayXuatVe', key: 'ngayXuatVe' },
-  { title: 'Cổng check-in', dataIndex: 'congCheckin', key: 'congCheckin' },
-];
-
 function QuanLyVe() {
+  const [isUnusedPackage, setIsUnusedPackage] = useState<boolean>(false);
 
-  // gọi dữ liệu từ firebase trang quản lý vé
+  const columnsGoiSuKien = [
+    { title: 'STT', dataIndex: 'STT', key: 'STT' },
+    { title: 'Booking Code', dataIndex: 'bookingCode', key: 'bookingCode' },
+    { title: 'Số vé', dataIndex: 'soVe', key: 'soVe' },
+    { title: 'Tên sự kiện', dataIndex: 'tenSK', key: 'tenSK' },
+    {
+      title: 'Tình trạng sử dụng',
+      dataIndex: 'tinhTrangSD',
+      key: 'tinhTrangSD',
+      render: (tinhTrang: string) => (
+        <Tag color={tinhTrangColors[tinhTrang] || 'default'}>
+          {tinhTrang}
+        </Tag>
+      ),
+    },
+    { title: 'Ngày sử dụng', dataIndex: 'ngaySD', key: 'ngaySD'},
+    { title: 'Ngày xuất vé', dataIndex: 'ngayXuatVe', key: 'ngayXuatVe' },
+    { title: 'Cổng check-in', dataIndex: 'congCheckin', key: 'congCheckin' },
+     {
+      title: '',
+      dataIndex: '',
+      key: 'moreOutlined',
+      render: (record: any) => {
+        if (isUnusedPackage) {
+          return <MoreOutlined onClick={() => handleShowModal(record)} />;
+        }
+        return null;
+      },
+    },
+  ];
+  
+  const columnsGoiGiaDinh = [
+    { title: 'STT', dataIndex: 'STT', key: 'STT' },
+    { title: 'Booking Code', dataIndex: 'bookingCode', key: 'bookingCode' },
+    { title: 'Số vé', dataIndex: 'soVe', key: 'soVe' },
+    {
+      title: 'Tình trạng sử dụng',
+      dataIndex: 'tinhTrangSD',
+      key: 'tinhTrangSD',
+      render: (tinhTrang: string) => (
+        <Tag color={tinhTrangColors[tinhTrang] || 'default'}>
+          {tinhTrang}
+        </Tag>
+      ),
+    },
+    { title: 'Ngày sử dụng', dataIndex: 'ngaySD', key: 'ngaySD', },
+    { title: 'Ngày xuất vé', dataIndex: 'ngayXuatVe', key: 'ngayXuatVe' },
+    { title: 'Cổng check-in', dataIndex: 'congCheckin', key: 'congCheckin' },
+    {
+      title: '',
+      dataIndex: '',
+      key: 'moreOutlined',
+      render: (record: any) => {
+        if (isUnusedPackage) {
+          return <MoreOutlined onClick={() => handleShowModal(record)} />;
+        }
+        return null;
+      },
+    },
+  ];
+
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const [selectedRowData, setSelectedRowData] = useState<any>(null); 
+
+  const handleModalCancel = () => {
+    setModalVisible(false);
+  };
+  
+  const handleShowModal = (record: any) => {
+    setSelectedRowData(record);
+    if (record.tinhTrangSD === 'Chưa sử dụng') {
+      setModalVisible(true);
+    }
+  };
+  
+  const formatDateToString = (date: Dayjs | null): string => {
+    if (!date) return '';
+    return date.format('DD/MM/YYYY');
+  };
+  
+  console.log(formatDateToString(dayjs())); 
+
+  
+  const [newNgaySD, setNewNgaySD] = useState<Dayjs | null>(selectedRowData ? dayjs(selectedRowData.ngaySD) : null);
+
+const handleSaveNewNgaySD = () => {
+  if(selectedPackage === 'Gói gia đình'){
+    if (newNgaySD && selectedRowData) {
+      const updatedGoiGiaDinh: TableDataItemGoiGiaDinh = {
+        ...selectedRowData,
+        ngaySD: formatDateToString(newNgaySD),
+      };
+  
+      dispatch(updateNgaySDInFirebase(updatedGoiGiaDinh) as any); 
+      setModalVisible(false);
+  
+      dispatch(fetchGoiGiaDinhDataFromFirebase() as any);
+    }
+  }
+  else{
+    if (newNgaySD && selectedRowData) {
+      const updatedGoiSuKien: TableDataItemGoiSuKien = {
+        ...selectedRowData,
+        ngaySD: formatDateToString(newNgaySD),
+      };
+  
+      dispatch(updateNgaySDGSKInFirebase(updatedGoiSuKien) as any); 
+      setModalVisible(false);
+  
+      dispatch(fetchGoiSuKienDataFromFirebase() as any);
+    }
+  }
+};
+
   const dispatch = useDispatch<Dispatch>();
 
   const goiGiaDinh = useSelector((state: RootState) => state.goiGiaDinh);
   
   useEffect(() => {
-    dispatch(fetchGoiGiaDinhDataFromFirebase() as any); // ép kiểu thành any
+    dispatch(fetchGoiGiaDinhDataFromFirebase() as any);
   }, [dispatch]);
 
   const goiSuKien = useSelector((state: RootState) => state.goiSuKien);
   
   useEffect(() => {
-    dispatch(fetchGoiSuKienDataFromFirebase() as any); // ép kiểu thành any
+    dispatch(fetchGoiSuKienDataFromFirebase() as any);
   }, [dispatch]);
 
   const [selectedPackage, setSelectedPackage] = useState<string>('Gói gia đình');
 
-  // Lựa chọn cột dữ liệu hiển thị trong bảng dựa vào loại gói đang chọn
   const columns = selectedPackage === 'Gói gia đình' ? columnsGoiGiaDinh : columnsGoiSuKien;
 
-  // phân trang
   const [currentPageGoiGiaDinh, setCurrentPageGoiGiaDinh] = useState<number>(1);
   const [currentPageGoiSuKien, setCurrentPageGoiSuKien] = useState<number>(1);
 
-  // Lựa chọn dữ liệu hiển thị trong bảng và trang hiện tại dựa vào loại gói đang chọn
   const dataSource = selectedPackage === 'Gói gia đình' ? goiGiaDinh : goiSuKien;
   const currentPage = selectedPackage === 'Gói gia đình' ? currentPageGoiGiaDinh : currentPageGoiSuKien;
   const setCurrentPage = selectedPackage === 'Gói gia đình' ? setCurrentPageGoiGiaDinh : setCurrentPageGoiSuKien;
 
-  const pageSize = 5; // Số dòng dữ liệu trên mỗi trang
+  const pageSize = 5; 
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
 
-  // Sự kiện hiển thị modal lọc vé
   const [visible, setVisible] = useState(false);
 
   const showModal = () => {
@@ -130,41 +199,9 @@ function QuanLyVe() {
     setVisible(false);
   };
 
-  // Thiết lập định dạng cho ngày tháng năm
-  const [fromDate, setFromDate] = useState<Dayjs | null>(null);
-  const [toDate, setToDate] = useState<Dayjs | null>(null);
 
-  const handleFromDateChange = (date: Dayjs | null, dateString: string) => {
-    setFromDate(date);
-    // Thực hiện xử lý khác (nếu có)
-  };
-
-  const handleToDateChange = (date: Dayjs | null, dateString: string) => {
-    setToDate(date);
-    // Thực hiện xử lý khác (nếu có)
-  };
-
-  // Sự kiện cho radio button
-  const [value, setValue] = useState<number>(1);
-
-  const onChangeRadioTinhTrangSD = (e: RadioChangeEvent) => {
-    console.log('radio checked', e.target.value);
-    setValue(e.target.value);
-  };
-
-  // Sự kiện cho checkbox cổng check-in
-  const onChangeCheckBox = (checkedValues: CheckboxValueType[]) => {
-    console.log('checked = ', checkedValues);
-  };
-
-  const onPageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-// Hàm xử lý khi nút "Xuất file(.csv)" được nhấn
 const handleExportCSV = () => {
     const dataToExport = paginatedData.map((item) => ({
-      // Customize the mapping based on your table data
       'STT': item.STT,
       'Booking Code': item.bookingCode,
       'Số vé': item.soVe,
@@ -173,22 +210,18 @@ const handleExportCSV = () => {
       'Ngày xuất vé': item.ngayXuatVe,
       'Cổng check-in': item.congCheckin,
     }));
-    exportAsCSV(dataToExport, 'danh_sach_ve.csv'); // Gọi hàm xuất file CSV
+    exportAsCSV(dataToExport, 'danh_sach_ve.csv');
   };
 
-  // Tạo state để lưu từ khóa tìm kiếm
   const [searchKeyword, setSearchKeyword] = useState<string>('');
 
-  // Hàm xử lý tìm kiếm
   const handleSearch = (value: string) => {
-    setSearchKeyword(value.toLowerCase()); // Chuyển đổi thành chữ thường và lưu từ khóa tìm kiếm
+    setSearchKeyword(value.toLowerCase()); 
     console.log('Search value:', value);
   };
 
-  // Hàm lọc dữ liệu theo từ khóa tìm kiếm
-  const filteredData = dataSource.filter((TableDataItem) => {
+  const filteredDataTK = dataSource.filter((TableDataItem) => {
     const lowerCaseSearchKeyword = searchKeyword.toLowerCase();
-    // Kiểm tra nếu số vé hoặc cổng checkin chứa từ khóa tìm kiếm (không phân biệt chữ hoa, chữ thường)
     return (
       TableDataItem.bookingCode.toLowerCase().includes(lowerCaseSearchKeyword) ||
       TableDataItem.soVe.toLowerCase().includes(lowerCaseSearchKeyword) ||
@@ -197,8 +230,85 @@ const handleExportCSV = () => {
     );
   });
 
-  // Phân trang cho dữ liệu đã lọc
-  const paginatedData = filteredData.slice(startIndex, endIndex);
+  const paginatedData = filteredDataTK.slice(startIndex, endIndex);
+
+ useEffect(() => {
+  const hasUnusedPackage = filteredDataTK.some((item) => item.tinhTrangSD === 'Chưa sử dụng');
+
+  setIsUnusedPackage(hasUnusedPackage);
+}, [filteredDataTK]);
+
+const [selectAllChecked, setSelectAllChecked] = useState(false);
+const [otherCheckboxesDisabled, setOtherCheckboxesDisabled] = useState(false);
+
+const handleSelectAllChange = (e: any) => {
+  const isChecked = e.target.checked;
+  setSelectAllChecked(isChecked);
+  setOtherCheckboxesDisabled(isChecked); 
+};
+
+
+const [filterOptions, setFilterOptions] = useState({
+  fromDate: null,
+  toDate: null,
+  tinhTrang: null,
+  congCheckin: [],
+});
+
+const [fromDate, setFromDate] = useState<Dayjs | null>(null);
+const [toDate, setToDate] = useState<Dayjs | null>(null);
+
+
+const handleFromDateChange = (date: Dayjs | null) => {
+  setFromDate(date);
+};
+
+const handleToDateChange = (date: Dayjs | null) => {
+  setToDate(date);
+};
+
+const [congCheckin, setCongCheckin] = useState<string[]>([]); 
+
+const [filteredData, setFilteredData] = useState<TableDataItemGoiGiaDinh[] | TableDataItemGoiSuKien[]>([]);
+
+const handleFilterData = () => {
+  const filteredData = filteredDataTK.filter((TableDataItem) => {
+    if (filterOptions.fromDate && TableDataItem.ngaySD) {
+      const ngaySD: Dayjs = dayjs(TableDataItem.ngaySD);
+      if (ngaySD.isBefore(filterOptions.fromDate)) {
+        return false;
+      }
+    }
+
+    if (filterOptions.toDate && TableDataItem.ngayXuatVe) {
+      const ngayXuatVe: Dayjs = dayjs(TableDataItem.ngayXuatVe);
+      if (ngayXuatVe.isAfter(filterOptions.toDate)) {
+        return false;
+      }
+    }
+
+    if (filterOptions.tinhTrang && TableDataItem.tinhTrangSD) {
+      if (TableDataItem.tinhTrangSD !== filterOptions.tinhTrang) {
+        return false;
+      }
+    }
+
+    if (filterOptions.congCheckin.length > 0 && TableDataItem.congCheckin) {
+      const congCheckinMatch = filterOptions.congCheckin.some((value) =>
+        TableDataItem.congCheckin.includes(value)
+      );
+      if (!congCheckinMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  setFilteredData(filteredData);
+
+  console.log(filteredData);
+};
 
   return (
     <div style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', width: '1180px', height: '580px' }}>
@@ -227,63 +337,131 @@ const handleExportCSV = () => {
           <h1 style={{ textAlign: 'center', marginTop: '0px' }}>Lọc Vé</h1>
           <div style={{ display: 'flex' }}>
             <p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Từ ngày:</p>
-            <DatePicker value={fromDate} onChange={handleFromDateChange} format="DD/MM/YYYY" style={{ marginLeft: '5px', marginRight: '30px' }} />
+            <DatePicker
+  value={fromDate} 
+  onChange={handleFromDateChange}
+  format="DD/MM/YYYY"
+  style={{ marginLeft: '5px', marginRight: '30px' }}
+/>
             <p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Đến ngày:</p>
-            <DatePicker value={toDate} onChange={handleToDateChange} format="DD/MM/YYYY" style={{ marginLeft: '5px' }} />
+            <DatePicker
+  value={toDate} 
+  onChange={handleToDateChange}
+  format="DD/MM/YYYY"
+  style={{ marginLeft: '5px', marginRight: '30px' }}
+/>
           </div>
 
-          {/* Tình trạng sử dụng */}
-          <p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Tình trạng sử dụng</p>
-          <Radio.Group onChange={onChangeRadioTinhTrangSD} value={value} style={{ display: 'flex' }}>
-            <Radio value={1}>Tất cả</Radio>
-            <Radio value={2}>Đã sử dụng</Radio>
-            <Radio value={3}>Chưa sử dụng</Radio>
-            <Radio value={4}>Hết hạn</Radio>
-          </Radio.Group>
+        {/* Tình trạng sử dụng */}
+<p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Tình trạng sử dụng</p>
+<Radio.Group style={{ display: 'flex' }} onChange={(e) => setFilterOptions({ ...filterOptions, tinhTrang: e.target.value })}>
+  <Radio value={null}>Tất cả</Radio>
+  <Radio value="Đã sử dụng">Đã sử dụng</Radio>
+  <Radio value="Chưa sử dụng">Chưa sử dụng</Radio>
+  <Radio value="Hết hạn">Hết hạn</Radio>
+</Radio.Group>
 
           {/* Cổng check-in */}
           <p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Cổng check-in</p>
-          <Checkbox.Group style={{ width: '100%' }} onChange={onChangeCheckBox}>
-            <Row>
-              <Col span={8}>
-                <Checkbox value="Tất cả">Tất cả</Checkbox>
-              </Col>
-              <Col span={8}>
-                  <Checkbox value="Cổng 1">Cổng 1</Checkbox>
-                </Col>
-                <Col span={8}>
-                  <Checkbox value="Cổng 2">Cổng 2</Checkbox>
-                </Col>
-              <Col span={8}>
-                  <Checkbox value="Cổng 3">Cổng 3</Checkbox>
-              </Col>
-              <Col span={8}>
-               <Checkbox value="Cổng 4">Cổng 4</Checkbox>
-              </Col>
-              <Col span={8}>
-                <Checkbox value="Cổng 5">Cổng 5</Checkbox>
-              </Col>
-            </Row>
-            </Checkbox.Group>
-
+          <Checkbox.Group
+    style={{ width: '100%' }}
+    value={congCheckin}
+    onChange={(values: CheckboxValueType[]) => setCongCheckin(values as string[])}>
+    <Row>
+      <Col span={8}>
+      <Checkbox value={'Tất cả'} onChange={handleSelectAllChange}>
+  Tất cả
+</Checkbox>
+      </Col>
+        <Col span={8} >
+        <Checkbox value={'Cổng 1'} disabled={otherCheckboxesDisabled}>
+  Cổng 1
+</Checkbox>
+        </Col>
+        <Col span={8} >
+        <Checkbox value={'Cổng 2'} disabled={otherCheckboxesDisabled}>
+  Cổng 2
+</Checkbox>
+        </Col>
+        <Col span={8} >
+          <Checkbox value={'Cổng 3'} disabled={otherCheckboxesDisabled} >
+            Cổng 3
+          </Checkbox>
+        </Col>
+        <Col span={8} >
+          <Checkbox value={'Cổng 4'} disabled={otherCheckboxesDisabled}>
+            Cổng 4
+          </Checkbox>
+        </Col>
+        <Col span={8} >
+          <Checkbox  value={'Cổng 5'} disabled={otherCheckboxesDisabled}>
+            Cổng 5
+          </Checkbox>
+        </Col>
+    </Row>
+  </Checkbox.Group>
+  
           {/* Nút lọc */}
-          <Button size={'large'} className='btnLoc' style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange' }}>Lọc</Button>
+          <Button
+  size="large"
+  style={{
+    border: '1px solid rgb(255, 202, 8)',
+    fontWeight: '500',
+    color: 'orange',
+    marginTop: '20px',
+    marginLeft: '200px'
+  }}
+  onClick={() => {
+    handleFilterData();
+    setVisible(false); 
+  }}
+>
+  Lọc
+</Button>
         </Modal>
         {/* Nút "Xuất file(.csv)" */}
     <Button size={'large'} style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange' }} onClick={handleExportCSV}>
   Xuất file(.csv)
   </Button>
       </div>
-
       {/* Bảng dữ liệu danh sách vé */}
       <Table dataSource={paginatedData} columns={columns} pagination={false} style={{ marginTop: '30px' }} />
       {/* Phân trang */}
         <Pagination
         current={currentPage }  pageSize={pageSize}
-        total={dataSource.length}        onChange={setCurrentPage} // Sử dụng setState tương ứng với loại gói đang chọn
+        total={dataSource.length}        onChange={setCurrentPage} 
         style={{ marginTop: '10px', textAlign: 'center' }}/>
+
+<Modal
+  visible={modalVisible}
+  onCancel={handleModalCancel}
+  footer={null}>
+  {selectedRowData && (
+    <>
+    <h1 style={{textAlign:'center'}}>Đổi ngày sử dụng vé</h1>
+      <p>Booking Code: {selectedRowData.bookingCode}</p>
+      <p>Số vé: {selectedRowData.soVe}</p>
+      <p>Cổng check-in: {selectedRowData.congCheckin}</p>
+      <p>Hạn sử dụng: 
+        <DatePicker value={newNgaySD} onChange={(date, dateString) => setNewNgaySD(date)} format="DD/MM/YYYY" />
+        </p>
+      <div style={{ display: 'flex', marginTop: '30px', marginLeft: '180px' }}>
+        <Button size='large'
+          style={{ border: '1px solid orange', color: 'orange', borderRadius: '7px', backgroundColor: 'white', marginRight: '7px'}}
+          onClick={() => setModalVisible(false)}>
+          Hủy
+        </Button>
+        <Button size='large'
+          style={{ backgroundColor: 'orange', color: 'white', borderRadius: '7px', border: '1px solid orange'}}
+          onClick={handleSaveNewNgaySD}
+        >
+          Lưu
+        </Button>
+      </div>
+    </>
+  )}
+</Modal>
       </div>
 );
 }
-  
 export default QuanLyVe;
