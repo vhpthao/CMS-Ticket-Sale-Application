@@ -9,7 +9,7 @@ import { fetchGoiGiaDinhDataFromFirebase, State as GoiGiaDinhState , TableDataIt
 import { fetchGoiSuKienDataFromFirebase, State as GoiSuKienState ,TableDataItemGoiSuKien,  updateNgaySDGSKInFirebase} from '../store/goiSuKienSlice';
 import { Dispatch } from 'redux';
 import Papa from 'papaparse';
-import { MoreOutlined } from '@ant-design/icons';
+import { FilterOutlined, MoreOutlined } from '@ant-design/icons';
 import { CheckboxValueType } from 'antd/lib/checkbox/Group';
 
 // Hàm để xuất dữ liệu dưới dạng file CSV với encoding UTF-8 và BOM
@@ -31,7 +31,6 @@ interface RootState {
   goiGiaDinh: GoiGiaDinhState;
   goiSuKien: GoiSuKienState;
 }
-
 // Định nghĩa màu tương ứng cho từng giá trị "tinhTrang"
 const tinhTrangColors: { [key: string]: string } = {
   'Đã sử dụng': 'blue',
@@ -39,6 +38,12 @@ const tinhTrangColors: { [key: string]: string } = {
   'Hết hạn':'red'
 };
 
+interface FilterOptions {
+  fromDate: Dayjs | null;
+  toDate: Dayjs | null;
+  tinhTrang: string | null;
+  congCheckin: string[]; // Make sure congCheckin is an array of strings
+}
 function QuanLyVe() {
   // Thêm biến trạng thái để xác định gói có trạng thái "Chưa sử dụng"
   const [isUnusedPackage, setIsUnusedPackage] = useState<boolean>(false);
@@ -123,7 +128,7 @@ const renderMoreOutlined = (record: any) => {
   
   const formatDateToString = (date: Dayjs | null): string => {
     if (!date) return '';
-    return date.format('DD/MM/YYYY');
+    return date.startOf('day').format('DD/MM/YYYY');
   };
   
   console.log(formatDateToString(dayjs())); // Kết quả nên khớp với định dạng mong muốn.
@@ -174,7 +179,7 @@ const handleSaveNewNgaySD = () => {
     dispatch(fetchGoiSuKienDataFromFirebase() as any);
   }, [dispatch]);
   
-  const [filterOptions, setFilterOptions] = useState({
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     fromDate: null,
     toDate: null,
     tinhTrang: null,
@@ -190,7 +195,9 @@ const handleSaveNewNgaySD = () => {
       console.log('Search value:', value);
     };
 
-    
+    // vừa thêm
+const [filteredData, setFilteredData] = useState<TableDataItemGoiGiaDinh[] | TableDataItemGoiSuKien[]>([]);
+
   // Sau khi dữ liệu đã được gọi từ Firebase, bạn có thể cập nhật state dataSource và filteredDataTK.
   // Sử dụng useSelector để lấy dữ liệu từ store và gán cho dataSource và filteredDataTK.
   const [selectedPackage, setSelectedPackage] = useState<string>('Gói gia đình');
@@ -199,6 +206,8 @@ const handleSaveNewNgaySD = () => {
   const columns = selectedPackage === 'Gói gia đình' ? columnsGoiGiaDinh : columnsGoiSuKien;
 
   const dataSource = selectedPackage === 'Gói gia đình' ? goiGiaDinh : goiSuKien;
+
+  // chức năng tìm kiếm và chức năng lọc
   const filteredDataTK = dataSource.filter((TableDataItem) => {
   // Áp dụng các điều kiện lọc dữ liệu dựa trên giá trị từ Modal và gói dữ liệu đang được hiển thị
   if (filterOptions.tinhTrang && TableDataItem.tinhTrangSD) {
@@ -287,10 +296,6 @@ const handleExportCSV = () => {
     exportAsCSV(dataToExport, 'danh_sach_ve.csv'); // Gọi hàm xuất file CSV
   };
 
-
-  // Phân trang cho dữ liệu đã lọc
-  const paginatedData = filteredDataTK.slice(startIndex, endIndex);
-
  // Kiểm tra xuất hiện nút ba chấm
  useEffect(() => {
   // Kiểm tra xem có ít nhất một gói nào có trạng thái "Chưa sử dụng" không
@@ -312,8 +317,6 @@ const handleSelectAllChange = (e: any) => {
   setOtherCheckboxesDisabled(isChecked); // Disable other checkboxes when "Select All" is checked
 };
 
-
-
 // Khởi tạo fromDate và toDate ban đầu với giá trị null
 const [fromDate, setFromDate] = useState<Dayjs | null>(null);
 const [toDate, setToDate] = useState<Dayjs | null>(null);
@@ -321,71 +324,88 @@ const [toDate, setToDate] = useState<Dayjs | null>(null);
 // Các hàm xử lý thay đổi giá trị fromDate và toDate
 const handleFromDateChange = (date: Dayjs | null) => {
   setFromDate(date);
+  handleFilterData(); // Call the filtering function when fromDate changes
 };
 
 const handleToDateChange = (date: Dayjs | null) => {
   setToDate(date);
+  handleFilterData(); // Call the filtering function when toDate changes
 };
 
-const [congCheckin, setCongCheckin] = useState<string[]>([]); 
+const [congCheckin, setCongCheckin] = useState<string[]>([]);
 
-// vừa thêm
-const [filteredData, setFilteredData] = useState<TableDataItemGoiGiaDinh[] | TableDataItemGoiSuKien[]>([]);
+const handleCheckinChange = (checkedValues: CheckboxValueType[]) => {
+  if (checkedValues.includes('Tất cả')) {
+    // Nếu người dùng chọn "Tất cả", đặt giá trị congCheckin là một mảng chứa chỉ "Tất cả"
+    setCongCheckin(['Tất cả']);
+  } else {
+    // Ngược lại, đặt giá trị congCheckin là mảng các giá trị cổng check-in được chọn
+    setCongCheckin(checkedValues as string[]);
+  }
+};
 
 // Hàm thực hiện việc lọc dữ liệu
-// Hàm xử lý lọc dữ liệu
 const handleFilterData = () => {
-  const filteredData = filteredDataTK.filter((TableDataItem) => {
-    // Áp dụng các điều kiện lọc dữ liệu dựa trên giá trị từ Modal và gói dữ liệu đang được hiển thị
-    if (filterOptions.fromDate && TableDataItem.ngaySD) {
-      const ngaySD: Dayjs = dayjs(TableDataItem.ngaySD);
-      if (ngaySD.isBefore(filterOptions.fromDate)) {
-        return false;
-      }
+  const filteredData = dataSource.filter((TableDataItem) => {
+   // Kiểm tra lọc ngày sử dụng (fromDate và toDate)
+   if (fromDate && TableDataItem.ngaySD) {
+    const ngaySD: Dayjs = dayjs(TableDataItem.ngaySD, 'DD/MM/YYYY').startOf('day');
+    if (ngaySD.isBefore(fromDate.startOf('day'))) {
+      return false;
     }
+  }
 
-    if (filterOptions.toDate && TableDataItem.ngayXuatVe) {
-      const ngayXuatVe: Dayjs = dayjs(TableDataItem.ngayXuatVe);
-      if (ngayXuatVe.isAfter(filterOptions.toDate)) {
-        return false;
-      }
+  if (toDate && TableDataItem.ngaySD) {
+    const ngaySD: Dayjs = dayjs(TableDataItem.ngaySD, 'DD/MM/YYYY').startOf('day');
+    if (ngaySD.isAfter(toDate.startOf('day'))) {
+      return false;
     }
-
+  }
     if (filterOptions.tinhTrang && TableDataItem.tinhTrangSD) {
       if (TableDataItem.tinhTrangSD !== filterOptions.tinhTrang) {
         return false;
       }
     }
 
-    if (filterOptions.congCheckin.length > 0 && TableDataItem.congCheckin) {
-      const congCheckinMatch = filterOptions.congCheckin.some((value) =>
-        TableDataItem.congCheckin.includes(value)
-      );
-      if (!congCheckinMatch) {
-        return false;
-      }
+ // Kiểm tra lọc cổng check-in
+ if (filterOptions.congCheckin.length > 0 && TableDataItem.congCheckin) {
+  if (!filterOptions.congCheckin.includes('Tất cả')) {
+    // Nếu "Tất cả" không được chọn, lọc dựa trên từng cổng check-in riêng lẻ
+    const congCheckinMatch = filterOptions.congCheckin.some((value) =>
+      TableDataItem.congCheckin.includes(value)
+    );
+    if (!congCheckinMatch) {
+      return false;
     }
+  }
+}
 
-    // Kiểm tra nếu số vé hoặc cổng checkin chứa từ khóa tìm kiếm (không phân biệt chữ hoa, chữ thường)
-    if (searchKeyword) {
-      const lowerCaseSearchKeyword = searchKeyword.toLowerCase();
-      return (
-        TableDataItem.bookingCode.toLowerCase().includes(lowerCaseSearchKeyword) ||
-        TableDataItem.soVe.toLowerCase().includes(lowerCaseSearchKeyword) ||
-        TableDataItem.tinhTrangSD.toLowerCase().includes(lowerCaseSearchKeyword) ||
-        TableDataItem.congCheckin.toLowerCase().includes(lowerCaseSearchKeyword)
-      );
-    }
+// Kiểm tra nếu số vé chứa từ khóa tìm kiếm (không phân biệt chữ hoa, chữ thường)
+if (searchKeyword) {
+  const lowerCaseSearchKeyword = searchKeyword.toLowerCase();
+  return (
+    TableDataItem.bookingCode.toLowerCase().includes(lowerCaseSearchKeyword) ||
+    TableDataItem.soVe.toLowerCase().includes(lowerCaseSearchKeyword)
+  );
+}  return true;
+});
 
-    return true;
-  });
-
+   // Cập nhật giá trị congCheckin vào filterOptions
+   setFilterOptions({ ...filterOptions, congCheckin });
   // Lưu kết quả vào state 'filteredData'
   setFilteredData(filteredData);
 
   // Khi có dữ liệu đã lọc, bạn có thể làm gì đó với nó, ví dụ hiển thị lên UI.
   console.log(filteredData);
 };
+
+// Cập nhật 'filteredDataTK' khi có sự thay đổi về dữ liệu
+useEffect(() => {
+  handleFilterData();
+}, [dataSource, filterOptions, searchKeyword]);
+
+// Phân trang cho dữ liệu đã lọc
+const paginatedData = filteredData.slice(startIndex, endIndex);
 
   return (
     <div style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', width: '1180px', height: '580px' }}>
@@ -405,7 +425,7 @@ const handleFilterData = () => {
       {/* Modal lọc vé */}
       <div style={{ float: 'right' }}>
         <Button type="primary" onClick={showModal} style={{ marginRight: '10px', backgroundColor: 'orange', fontWeight: 500 }} size='large'>
-          Lọc vé
+        <FilterOutlined /> Lọc vé 
         </Button>
         <Modal title="Lọc vé"  visible={visible}
         onOk={handleOk}
@@ -415,18 +435,18 @@ const handleFilterData = () => {
           <div style={{ display: 'flex' }}>
             <p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Từ ngày:</p>
             <DatePicker
-  value={fromDate} // Sử dụng giá trị 'fromDate' ở đây
-  onChange={handleFromDateChange}
-  format="DD/MM/YYYY"
-  style={{ marginLeft: '5px', marginRight: '30px' }}
-/>
+    value={fromDate} // Sử dụng giá trị 'fromDate' ở đây
+    onChange={(date, dateString) => setFromDate(date)}
+    format="DD/MM/YYYY"
+    style={{ marginLeft: '5px', marginRight: '30px' }}
+  />
             <p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Đến ngày:</p>
             <DatePicker
-  value={toDate} // Sử dụng giá trị 'fromDate' ở đây
-  onChange={handleToDateChange}
-  format="DD/MM/YYYY"
-  style={{ marginLeft: '5px', marginRight: '30px' }}
-/>
+    value={toDate} // Sử dụng giá trị 'toDate' ở đây
+    onChange={(date, dateString) => setToDate(date)}
+    format="DD/MM/YYYY"
+    style={{ marginLeft: '5px', marginRight: '30px' }}
+  />
           </div>
 
         {/* Tình trạng sử dụng */}
@@ -441,25 +461,26 @@ const handleFilterData = () => {
           {/* Cổng check-in */}
           <p style={{ fontWeight: 'bold', marginTop: '20px', fontSize: '15px' }}>Cổng check-in</p>
           <Checkbox.Group
-    style={{ width: '100%' }}
-    value={congCheckin}
-    onChange={(values: CheckboxValueType[]) => setCongCheckin(values as string[])}>
-    <Row>
-      <Col span={8}>
+  style={{ width: '100%' }}
+  value={congCheckin}
+  onChange={handleCheckinChange}
+>
+  <Row>
+    <Col span={8}>
       <Checkbox value={'Tất cả'} onChange={handleSelectAllChange}>
-  Tất cả
-</Checkbox>
-      </Col>
-        <Col span={8} >
-        <Checkbox value={'Cổng 1'} disabled={otherCheckboxesDisabled}>
-  Cổng 1
-</Checkbox>
-        </Col>
-        <Col span={8} >
-        <Checkbox value={'Cổng 2'} disabled={otherCheckboxesDisabled}>
-  Cổng 2
-</Checkbox>
-        </Col>
+        Tất cả
+      </Checkbox>
+    </Col>
+    <Col span={8}>
+      <Checkbox value={'Cổng 1'} disabled={otherCheckboxesDisabled}>
+        Cổng 1
+      </Checkbox>
+    </Col>
+    <Col span={8}>
+      <Checkbox value={'Cổng 2'} disabled={otherCheckboxesDisabled}>
+        Cổng 2
+      </Checkbox>
+    </Col>
         <Col span={8} >
           <Checkbox value={'Cổng 3'} disabled={otherCheckboxesDisabled} >
             Cổng 3

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   XAxis,
   YAxis,
@@ -114,113 +114,183 @@ function TrangChu() {
   }, [goiDichVu]);
 
   //pie
-  // State mới để lưu trữ thông tin tháng được chọn từ DatePicker thứ hai
-  const [selectedMonthForPie, setSelectedMonthForPie] = useState<Dayjs | null>(null);
-
-  // Nếu chưa lấy dữ liệu từ Firebase hoặc dữ liệu tháng chưa có, đặt dữ liệu cho cả hai biểu đồ Pie về rỗng
-  useEffect(() => {
-    if (!dataLoaded || !selectedMonthForPie) {
-      setPieGoiGiaDinhData([]);
-      setPieGoiSuKienData([]);
-    }
-  }, [dataLoaded, selectedMonthForPie]);
+  const filterDataByMonth = (data: any[], selectedMonth: Dayjs) => {
+    return data.filter(item => {
+      const dateParts = item.ngayApDung.split('/');
+      const date = dayjs(new Date(parseInt(dateParts[2]), parseInt(dateParts[1]) - 1, parseInt(dateParts[0])));
+      return date.isSame(selectedMonth, 'month');
+    });
+  };
   
-  // Hàm xử lý khi tháng được chọn từ DatePicker thứ hai
-const handlePieMonthChange = (date: Dayjs | null, dateString: string) => {
-  setSelectedMonthForPie(date); // Cập nhật state khi ngày thay đổi
+ // State mới để lưu trữ thông tin tháng được chọn từ DatePicker thứ hai
+ const [selectedMonthForPie, setSelectedMonthForPie] = useState<Dayjs | null>(null);
 
-  // Kiểm tra xem đã chọn tháng từ DatePicker thứ nhất chưa
-  // Nếu đã chọn, thực hiện tính toán và cập nhật dữ liệu cho cả hai biểu đồ Pie
-  if (date && weeklyChartData.length > 0) {
-    const totalRevenue = goiDichVu.reduce((total, item) => total + (parseFloat(item.giaVe) || parseFloat(item.giaCombo) || 0), 0);
-    
-    // Tính dữ liệu cho biểu đồ Pie Gói gia đình
-    const giaDinhData = [
-      { name: 'Đang áp dụng', value: (goiDichVu.reduce((total, item) => (item.tinhTrang === 'Đang áp dụng' && parseFloat(item.giaVe)) ? total + parseFloat(item.giaVe) : total, 0) / totalRevenue) * 100 },
-      { name: 'Tắt', value: (goiDichVu.reduce((total, item) => (item.tinhTrang === 'Tắt' && parseFloat(item.giaVe)) ? total + parseFloat(item.giaVe) : total, 0) / totalRevenue) * 100 },
-    ];
-    setPieGoiGiaDinhData(giaDinhData);
-    
-    // Tính dữ liệu cho biểu đồ Pie Gói sự kiện
-    const suKienData = [
-      { name: 'Đang áp dụng', value: (goiDichVu.reduce((total, item) => (item.tinhTrang === 'Đang áp dụng' && parseFloat(item.giaCombo)) ? total + parseFloat(item.giaCombo) : total, 0) / totalRevenue) * 100 },
-      { name: 'Tắt', value: (goiDichVu.reduce((total, item) => (item.tinhTrang === 'Tắt' && parseFloat(item.giaCombo)) ? total + parseFloat(item.giaCombo) : total, 0) / totalRevenue) * 100 },
-    ];
-    setPieGoiSuKienData(suKienData);
-  } else {
-    // Nếu chưa chọn tháng từ DatePicker thứ nhất hoặc dữ liệu tháng chưa có, đặt dữ liệu cho cả hai biểu đồ Pie về rỗng
-    setPieGoiGiaDinhData([]);
-    setPieGoiSuKienData([]);
-  }
-};
+ // Nếu chưa lấy dữ liệu từ Firebase hoặc dữ liệu tháng chưa có, đặt dữ liệu cho cả hai biểu đồ Pie về rỗng
+ useEffect(() => {
+   if (!dataLoaded || !selectedMonthForPie) {
+     setPieGoiGiaDinhData([]);
+     setPieGoiSuKienData([]);
+   }
+ }, [dataLoaded, selectedMonthForPie]);
 
+ // Hàm tính toán và cập nhật dữ liệu biểu đồ Pie dựa trên tháng đã chọn
+ const handlePieMonthChange = (date: Dayjs | null, dateString: string) => {
+   setSelectedMonthForPie(date); // Cập nhật trạng thái khi ngày thay đổi
+
+   if (dataLoaded && date && weeklyChartData.length > 0) {
+     // Nếu có dữ liệu từ Firebase, đã chọn tháng từ DatePicker của biểu đồ Pie và weeklyChartData có dữ liệu
+     const filteredData = filterDataByMonth(goiDichVu, date);
+
+     if (filteredData.length > 0) {
+       const totalRevenue = filteredData.reduce(
+         (total, item) => total + (parseFloat(item.giaVe) || parseFloat(item.giaCombo) || 0),
+         0
+       );
+
+       // Tính toán dữ liệu cho biểu đồ Pie - Gói gia đình
+       const giaDinhData = [
+         {
+           name: 'Đang áp dụng',
+           value:
+             (filteredData.reduce(
+               (total, item) =>
+                 item.tinhTrang === 'Đang áp dụng' && parseFloat(item.giaVe)
+                   ? total + parseFloat(item.giaVe)
+                   : total,
+               0
+             ) /
+               totalRevenue) *
+             100,
+         },
+         {
+           name: 'Tắt',
+           value:
+             (filteredData.reduce(
+               (total, item) => (item.tinhTrang === 'Tắt' && parseFloat(item.giaVe) ? total + parseFloat(item.giaVe) : total),
+               0
+             ) /
+               totalRevenue) *
+             100,
+         },
+       ];
+
+       // Tính toán dữ liệu cho biểu đồ Pie - Gói sự kiện
+       const suKienData = [
+         {
+           name: 'Đang áp dụng',
+           value:
+             (filteredData.reduce(
+               (total, item) =>
+                 item.tinhTrang === 'Đang áp dụng' && parseFloat(item.giaCombo)
+                   ? total + parseFloat(item.giaCombo)
+                   : total,
+               0
+             ) /
+               totalRevenue) *
+             100,
+         },
+         {
+           name: 'Tắt',
+           value:
+             (filteredData.reduce(
+               (total, item) =>
+                 item.tinhTrang === 'Tắt' && parseFloat(item.giaCombo) ? total + parseFloat(item.giaCombo) : total,
+               0
+             ) /
+               totalRevenue) *
+             100,
+         },
+       ];
+
+       setTotalRevenue(totalRevenue);
+       setPieGoiGiaDinhData(giaDinhData);
+       setPieGoiSuKienData(suKienData);
+     } else {
+       // Nếu không có dữ liệu cho tháng đã chọn, đặt dữ liệu biểu đồ Pie về rỗng
+       setTotalRevenue(0);
+       setPieGoiGiaDinhData([]);
+       setPieGoiSuKienData([]);
+     }
+   } else {
+     // Nếu chưa chọn tháng hoặc weeklyChartData không có dữ liệu, đặt dữ liệu biểu đồ Pie về rỗng
+     setTotalRevenue(0);
+     setPieGoiGiaDinhData([]);
+     setPieGoiSuKienData([]);
+   }
+ };
+ 
   return (
     <div style={{ marginLeft: '10px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '7px', width: '1180px', height: '585px' }}>
       <h1 style={{ marginBottom: 0 }}>Thống kê</h1>
       <h5 style={{ float: 'left', marginBottom: '0px' }}>Doanh thu</h5>
       <DatePicker onChange={onChangeMonth} picker="month" format="MM/YYYY" style={{ marginLeft: '930px', marginBottom: '20px' }} />
       <AreaChart width={1150} height={200} data={weeklyChartData}>
-        <defs>
-          <linearGradient id="weeklyAreaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(120, 196, 187, 0.3)" />
-            <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
-          </linearGradient>
-        </defs>
-        <XAxis dataKey="name" axisLine={false} tickLine={false} />
-        <YAxis axisLine={false} tickLine={false} />
-        <CartesianGrid stroke="#ccc" />
-        <Tooltip />
-        {showLegend && <Legend />}
-        <Area type="monotone" dataKey="doanhthu" stroke="#78C4BB" fill="url(#weeklyAreaGradient)" strokeWidth={3} />
-      </AreaChart>
+  <defs>
+    <linearGradient id="weeklyAreaGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor="rgba(255, 165, 0, 0.3)" /> {/* Updated stopColor to orange for area */}
+      <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
+    </linearGradient>
+  </defs>
+  <XAxis dataKey="name" axisLine={false} tickLine={false} />
+  <YAxis axisLine={false} tickLine={false} />
+  <CartesianGrid stroke="#ccc" />
+  <Tooltip />
+  {showLegend && <Legend />}
+  <Area type="monotone" dataKey="doanhthu" stroke="orange" fill="url(#weeklyAreaGradient)" strokeWidth={3} /> {/* Set the line color to orange */}
+</AreaChart>
       <h3 style={{ marginTop: '10px', marginBottom: '20px' }}>Doanh thu: {totalRevenue} VNĐ</h3>
-
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div style={{}}>
         <DatePicker onChange={handlePieMonthChange} picker="month" format="MM/YYYY" style={{ marginRight: '30px' }} />
         </div>
+        {selectedMonthForPie && (
+  <div style={{ display: 'flex' }}>
         <div style={{ width: '30%' }}>
-          <h3 style={{ marginBottom: '5px', marginTop: '0px' }}>Gói gia đình</h3>
-          <PieChart width={400} height={220} >
-            <Pie
-              data={pieGoiGiaDinhData}
-              cx={200}
-              cy={100}
-              innerRadius={30}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-              label={(entry) => ` ${entry.value.toFixed(2)}%`}
-              style={{ marginLeft: '30px' }}
-            >
-              {pieGoiGiaDinhData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </div>
-        <div style={{ width: '30%' }}>
-          <h3 style={{ marginBottom: '0px', marginTop: '0px' }}>Gói sự kiện</h3>
-          <PieChart width={400} height={200} style={{ marginTop: '0px' }}>
-            <Pie
-              data={pieGoiSuKienData}
-              cx={200}
-              cy={100}
-              innerRadius={30}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-              label={(entry) => `${entry.value.toFixed(2)}%`}
-            >
-              {pieGoiSuKienData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </div>
-        <div style={{ width: '20%', marginTop: '30px' }}>
+      <h3 style={{ marginBottom: '5px', marginTop: '0px' }}>Gói gia đình</h3>
+      <PieChart width={350} height={200}>
+        {/* Các thành phần Pie, Cell và Tooltip nằm trong PieChart */}
+        <Pie
+          data={pieGoiGiaDinhData}
+          cx={200}
+          cy={100}
+          innerRadius={30}
+          outerRadius={80}
+          fill="#8884d8"
+          dataKey="value"
+          label={(entry) => ` ${entry.value.toFixed(2)}%`}
+          style={{ marginLeft: '30px' }}
+        >
+          {pieGoiGiaDinhData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Pie>
+        <Tooltip />
+      </PieChart>
+    </div>
+    <div style={{ width: '30%' }}>
+      <h3 style={{ marginBottom: '5px', marginTop: '0px', marginLeft:'50px'}}>Gói sự kiện</h3>
+      <PieChart width={350} height={200} style={{ marginTop: '0px', marginLeft:'50px' }}>
+        {/* Các thành phần Pie, Cell và Tooltip nằm trong PieChart */}
+        <Pie
+          data={pieGoiSuKienData}
+          cx={200}
+          cy={100}
+          innerRadius={30}
+          outerRadius={80}
+          fill="#8884d8"
+          dataKey="value"
+          label={(entry) => `${entry.value.toFixed(2)}%`}
+        >
+          {pieGoiSuKienData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Pie>
+        <Tooltip />
+      </PieChart>
+    </div>
+  </div>
+)}
+        <div style={{ width: '30%', marginTop: '30px' }}>
           <div style={{ display: 'flex' }}>
             <div className="dangSD"></div>
             <p style={{ marginTop: '5px' }}>Vé đang sử dụng</p>
