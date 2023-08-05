@@ -34,7 +34,10 @@ const columnsDoiSoatVe = [
   { title: 'Ngày sử dụng', dataIndex: 'ngaySD', key: 'ngaySD' },
   { title: 'Tên loại vé', dataIndex: 'tenLoaiVe', key: 'tenLoaiVe', flex: 1 },
   { title: 'Cổng check-in', dataIndex: 'congCheckin', key: 'congCheckin' },
-  { title: '', dataIndex: 'trangThai', key: 'trangThai', flex: 1 },
+  { title: '', dataIndex: 'trangThai', key: 'trangThai', flex: 1,
+  render: (text:any, record:any) => (
+    <span style={{ color: record.textColor || 'inherit' }}>{text}</span>
+  ), },
 ];
 
 function filterData(
@@ -76,7 +79,8 @@ function filterData(
 function DoiSoatVe() {
   const dispatch = useDispatch<Dispatch>();
   const doiSoatVe = useSelector((state: RootState) => state.doiSoatVe);
-
+  const [isChotDoiSoat, setIsChotDoiSoat] = useState(false); // Thêm trạng thái
+  
   // Bạn sẽ cần thêm một state để lưu trữ dữ liệu đã lọc
   const [filteredDataLoc, setFilteredDataLoc] = useState(doiSoatVe);
   const [searchKeywordTK, setSearchKeywordTK] = useState<string>('');
@@ -129,10 +133,40 @@ function DoiSoatVe() {
     handleFilterData();
   };
 
-  // Xử lý xuất dữ liệu ra file CSV khi người dùng click vào nút "Xuất CSV"
-  const handleExportCSV = () => {
-    exportAsCSV(filteredDataLoc, 'doi-soat-ve.csv');
-  };
+// Xử lý xuất dữ liệu ra file CSV khi người dùng click vào nút "Xuất CSV"
+const handleExportCSV = () => {
+  // Tạo danh sách các tên cột
+  const columnNames = [
+    'STT',
+    'Số vé',
+    'Tên sự kiện',
+    'Ngày sử dụng',
+    'Tên loại vé',
+    'Cổng check-in',
+    '',
+  ];
+
+  // Sử dụng dữ liệu từ Redux store trực tiếp
+  const dataWithoutKeysAndTextColor = doiSoatVe.map(({ key, textColor, ...rest }) => rest);
+
+  // Tạo dữ liệu cho file CSV bằng cách tạo mảng dữ liệu mới với các tên cột và dữ liệu tương ứng
+  const dataWithColumnNames = dataWithoutKeysAndTextColor.map((item) => [
+    item.STT,
+    item.soVe,
+    item.tenSK,
+    item.ngaySD,
+    item.tenLoaiVe,
+    item.congCheckin,
+    item.trangThai,
+  ]);
+
+  // Thêm danh sách tên cột vào đầu mảng dữ liệu
+  dataWithColumnNames.unshift(columnNames);
+
+  exportAsCSV(dataWithColumnNames, 'doi-soat-ve.csv');
+  setIsChotDoiSoat(false);
+  setIsChotDoiSoat(true);
+};
 
   // Tính toán chỉ số bắt đầu và kết thúc của dữ liệu hiển thị trên trang hiện tại
   const startIndex = (currentPage - 1) * pageSize;
@@ -150,6 +184,29 @@ const onPageChange = (page: number) => {
   // Danh sách tên sự kiện để hiển thị trong Select
   const eventNames = Array.from(new Set(doiSoatVe.map((item) => item.tenSK)));
   const eventOptions = [{ value: 'Tất cả', label: 'Tất cả' }, ...eventNames.map((eventName) => ({ value: eventName, label: eventName }))];
+  
+  const handleChotDoiSoat = () => {
+    const updatedData = filteredDataLoc.map(item => {
+      if (item.trangThai === 'Chưa đối soát') {
+        return { ...item, trangThai: 'Đã đối soát', textColor: 'red' };
+      }
+      return item;
+    });
+
+    const allAreDaDoiSoat = updatedData.every(item => item.trangThai === 'Đã đối soát');
+
+    if (allAreDaDoiSoat) {
+      const allDaDoiSoatData = updatedData.map(item => ({
+        ...item,
+        textColor: 'red'
+      }));
+      setFilteredDataLoc(allDaDoiSoatData);
+    } else {
+      setFilteredDataLoc(updatedData);
+    }
+
+    setIsChotDoiSoat(true); // Đã chốt đối soát
+  };
 
   return (
     <div style={{ display: 'flex' }}>
@@ -162,25 +219,31 @@ const onPageChange = (page: number) => {
   
         {/* Tìm kiếm */}
         <SearchComponent
-          placeholder='Tìm kiếm ở đây...'
+          placeholder='Tìm bằng số vé...'
           size='large'
           onSearch={handleSearch} // Sử dụng hàm xử lý tìm kiếm mới
           style={{ width: '350px', marginLeft: '0px', marginRight: '0px' }}
         />
-  
-        {/* Nút "Xuất file(.csv)" */}
+  {/* Nút "Xuất file(.csv)" */}
+  <Button
+          size={'large'}
+          style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'white', backgroundColor: 'orange', float: 'right', display: isChotDoiSoat ? 'none' : 'block' }}
+          onClick={handleChotDoiSoat}
+        >
+          Chốt đối soát
+        </Button>
         <Button
           size={'large'}
-          style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange', float: 'right' }}
+          style={{ border: '1px solid rgb(255, 202, 8)', fontWeight: '500', color: 'orange', float: 'right', display: isChotDoiSoat ? 'block' : 'none' }}
           onClick={handleExportCSV}
         >
           Xuất file(.csv)
         </Button>
-  
+
         {/* Bảng dữ liệu danh sách vé */}
         <Table dataSource={currentPageData} columns={columnsDoiSoatVe} pagination={false} style={{ marginTop: '30px' }} />
         {/* Phân trang */}
-        <Pagination current={currentPage} pageSize={pageSize} total={filteredDataLoc.length} onChange={onPageChange} style={{ marginTop: '10px', textAlign: 'center' }} />
+        <Pagination current={currentPage} pageSize={pageSize} total={filteredDataLoc.length} onChange={onPageChange} style={{ marginTop: '10px', textAlign: 'center',borderColor: 'orange'}} />
       </div>
   
       {/* Phần lọc vé */}
@@ -221,7 +284,6 @@ const onPageChange = (page: number) => {
           <p className='label'>Đến ngày:</p>
           <DatePicker value={toDate} onChange={handleChangeToDate} format="DD/MM/YYYY" style={{ marginLeft: '20px' }} />
         </div>
-  
         {/* Nút lọc */}
         <Button
           size={'large'}
@@ -233,7 +295,6 @@ const onPageChange = (page: number) => {
       </div>
     </div>
   );
-  
 }
 
 export default DoiSoatVe;

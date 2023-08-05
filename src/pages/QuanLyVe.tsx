@@ -541,7 +541,7 @@ const paginatedData = filteredData.slice(startIndex, endIndex);
       <p>Số vé: {selectedRowData.soVe}</p>
       <p>Cổng check-in: {selectedRowData.congCheckin}</p>
       <p>Hạn sử dụng: 
-        <DatePicker value={newNgaySD} onChange={(date, dateString) => setNewNgaySD(date)} format="DD/MM/YYYY" />
+        <DatePicker value={newNgaySD} onChange={(date, dateString) => setNewNgaySD(date)} format="DD/MM/YYYY" style={{marginLeft:'10px'}} />
         </p>
       <div style={{ display: 'flex', marginTop: '30px', marginLeft: '180px' }}>
         <Button size='large'
